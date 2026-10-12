@@ -16,7 +16,7 @@ st.set_page_config(
 
 from ui.theme import apply_theme, LOGO_SVG
 from core.config import APP_NAME, APP_TAGLINE, APP_VERSION
-from core.database import init_db
+from core.database import init_db, seed_demo_history
 from core.mock_site import start_mock_server
 
 # Import Pages
@@ -32,8 +32,9 @@ from ui.page_settings import render_settings_page
 
 
 def main():
-    # Initialize database and local demo server
+    # Initialize database, telemetry seed records, and local sandbox server
     init_db()
+    seed_demo_history()
     start_mock_server()
 
     # Apply Custom Dark Cyber Theme

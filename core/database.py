@@ -342,6 +342,16 @@ def seed_demo_history(db_path: str = DATABASE_PATH):
     # Scan 1: Baseline City Hall Portal (Score 35)
     with get_connection(db_path) as conn:
         cursor = conn.cursor()
+        raw_s1 = json.dumps({
+            "target_url": "https://portal.citygov.example.gov",
+            "final_url": "https://portal.citygov.example.gov",
+            "hostname": "portal.citygov.example.gov",
+            "timestamp": dates[0],
+            "status_code": 200,
+            "resolved_ips": ["198.51.100.10"],
+            "score_report": {"final_score": 35, "letter_grade": "F", "critical_high_count": 4},
+            "response_headers": {"server": "Apache/2.4.41 (Ubuntu)", "x-powered-by": "PHP/7.4.3"}
+        })
         cursor.execute("""
             INSERT INTO scans (
                 target_url, final_url, hostname, timestamp, score, letter_grade,
@@ -350,9 +360,9 @@ def seed_demo_history(db_path: str = DATABASE_PATH):
                 critical_high_count, raw_json
             ) VALUES (
                 'https://portal.citygov.example.gov', 'https://portal.citygov.example.gov', 'portal.citygov.example.gov',
-                ?, 35, 'F', 200, 340, 1, 10, 2, 6, 2, 0, 4, '{}'
+                ?, 35, 'F', 200, 340, 1, 10, 2, 6, 2, 0, 4, ?
             )
-        """, (dates[0],))
+        """, (dates[0], raw_s1))
         s1 = cursor.lastrowid
 
         # Insert some findings
@@ -370,6 +380,16 @@ def seed_demo_history(db_path: str = DATABASE_PATH):
             """, (f[0], f[1], f[2], f[3], f[4], f[5], f[6], f[7]))
 
         # Scan 2: State Health Portal (Score 65)
+        raw_s2 = json.dumps({
+            "target_url": "https://health.agency.example.gov",
+            "final_url": "https://health.agency.example.gov",
+            "hostname": "health.agency.example.gov",
+            "timestamp": dates[1],
+            "status_code": 200,
+            "resolved_ips": ["198.51.100.20"],
+            "score_report": {"final_score": 65, "letter_grade": "D", "critical_high_count": 2},
+            "response_headers": {"server": "nginx/1.18.0", "strict-transport-security": "max-age=86400"}
+        })
         cursor.execute("""
             INSERT INTO scans (
                 target_url, final_url, hostname, timestamp, score, letter_grade,
@@ -378,11 +398,26 @@ def seed_demo_history(db_path: str = DATABASE_PATH):
                 critical_high_count, raw_json
             ) VALUES (
                 'https://health.agency.example.gov', 'https://health.agency.example.gov', 'health.agency.example.gov',
-                ?, 65, 'D', 200, 410, 1, 10, 5, 3, 2, 0, 2, '{}'
+                ?, 65, 'D', 200, 410, 1, 10, 5, 3, 2, 0, 2, ?
             )
-        """, (dates[1],))
+        """, (dates[1], raw_s2))
 
         # Scan 3: Modernized Municipal Service (Score 92)
+        raw_s3 = json.dumps({
+            "target_url": "https://services.state.example.gov",
+            "final_url": "https://services.state.example.gov",
+            "hostname": "services.state.example.gov",
+            "timestamp": dates[2],
+            "status_code": 200,
+            "resolved_ips": ["198.51.100.30"],
+            "score_report": {"final_score": 92, "letter_grade": "A", "critical_high_count": 0},
+            "response_headers": {
+                "strict-transport-security": "max-age=31536000; includeSubDomains; preload",
+                "content-security-policy": "default-src 'self'",
+                "x-frame-options": "DENY",
+                "x-content-type-options": "nosniff"
+            }
+        })
         cursor.execute("""
             INSERT INTO scans (
                 target_url, final_url, hostname, timestamp, score, letter_grade,
@@ -391,9 +426,9 @@ def seed_demo_history(db_path: str = DATABASE_PATH):
                 critical_high_count, raw_json
             ) VALUES (
                 'https://services.state.example.gov', 'https://services.state.example.gov', 'services.state.example.gov',
-                ?, 92, 'A', 200, 290, 1, 10, 8, 0, 2, 0, 0, '{}'
+                ?, 92, 'A', 200, 290, 1, 10, 8, 0, 2, 0, 0, ?
             )
-        """, (dates[2],))
+        """, (dates[2], raw_s3))
 
         # Remediation tasks
         cursor.execute("""

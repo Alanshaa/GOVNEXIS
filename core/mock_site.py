@@ -13,26 +13,43 @@ from typing import Dict, Any, Optional
 from core.config import LOCAL_DEMO_HOST, LOCAL_DEMO_PORT
 
 
+import os
+
+STATE_FILE = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".demo_mode")
+
+
 class MockServerState:
     """Manages the current simulated security posture of the demo server."""
     MODE_BASELINE = "baseline"
     MODE_HARDENED = "hardened"
 
     def __init__(self):
-        self.mode = self.MODE_BASELINE
         self.running = False
         self.server_thread: Optional[threading.Thread] = None
         self.httpd: Optional[HTTPServer] = None
         self.lock = threading.Lock()
+        self.set_mode(self.MODE_BASELINE)
 
     def set_mode(self, mode: str):
         with self.lock:
             if mode in (self.MODE_BASELINE, self.MODE_HARDENED):
-                self.mode = mode
+                try:
+                    with open(STATE_FILE, "w") as f:
+                        f.write(mode)
+                except Exception:
+                    pass
 
     def get_mode(self) -> str:
         with self.lock:
-            return self.mode
+            if os.path.exists(STATE_FILE):
+                try:
+                    with open(STATE_FILE, "r") as f:
+                        content = f.read().strip()
+                        if content in (self.MODE_BASELINE, self.MODE_HARDENED):
+                            return content
+                except Exception:
+                    pass
+            return self.MODE_BASELINE
 
 
 # Singleton state instance
