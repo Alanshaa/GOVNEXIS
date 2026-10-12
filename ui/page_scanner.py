@@ -17,7 +17,7 @@ from core.scanner import execute_scan, ScanResult, ScanError
 from core.url_validator import ValidationError, SSRFSecurityError
 from core.database import save_scan
 from core.reports import generate_json_report, generate_html_report, generate_csv_report, generate_pdf_report
-from ui.theme import render_brand_header, get_status_badge_html, get_severity_badge_html
+from ui.theme import render_brand_header, get_status_badge_html, get_severity_badge_html, render_safe_html
 
 
 def render_scanner_page():
@@ -25,7 +25,7 @@ def render_scanner_page():
     render_brand_header("Defensive Security Configuration Auditing Engine")
 
     # Scope and Legal Pre-flight Notice
-    st.markdown("""
+    render_safe_html("""
     <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; border-left: 4px solid #06b6d4; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px;">
         <div style="font-weight: 700; color: #38bdf8; font-size: 0.9rem;">DEFENSIVE CONFIGURATION AUDIT ONLY</div>
         <div style="font-size: 0.8rem; color: #94a3b8; line-height: 1.5; margin-top: 4px;">
@@ -34,7 +34,7 @@ def render_scanner_page():
             Scanning requires verified authorization from the website owner or administering agency.
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     # Fast Preset Buttons
     col_pre1, col_pre2, _ = st.columns([1.5, 1.5, 2])
@@ -178,21 +178,21 @@ def render_scan_results(res: ScanResult):
     col_score, col_meta = st.columns([1.2, 2.8])
 
     with col_score:
-        st.markdown(f"""
+        render_safe_html(f"""
         <div style="background: #0f172a; border: 2px solid {score_color}; border-radius: 12px; padding: 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
             <div style="font-size: 0.8rem; text-transform: uppercase; color: #94a3b8; font-weight: 600;">SECURITY SCORE</div>
             <div style="font-size: 3.2rem; font-weight: 900; color: {score_color}; line-height: 1.1;">{score}</div>
             <div style="font-size: 1.2rem; font-weight: 800; color: {score_color}; margin-top: 4px;">GRADE: {grade}</div>
             <div style="font-size: 0.75rem; color: #64748b; margin-top: 8px;">Transparent CISA/NIST Metric</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with col_meta:
         pass_count = sum(1 for f in res.findings if f.status == "PASS")
         fail_count = sum(1 for f in res.findings if f.status == "FAIL")
         warn_count = sum(1 for f in res.findings if f.status == "WARNING")
 
-        st.markdown(f"""
+        render_safe_html(f"""
         <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 10px; margin-bottom: 12px;">
                 <span style="font-weight: 700; color: #f8fafc; font-size: 1.1rem;">Target: {res.hostname}</span>
@@ -216,7 +216,7 @@ def render_scan_results(res: ScanResult):
                 <strong>Destination URL:</strong> <code>{res.final_url}</code> (HTTP {res.status_code})
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     # Export Report Toolbar
     st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)

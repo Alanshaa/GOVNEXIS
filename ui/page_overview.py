@@ -17,7 +17,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 
 from core.database import get_scan_trends, get_all_scans, seed_demo_history
-from ui.theme import render_brand_header, render_hud_telemetry, get_status_badge_html
+from ui.theme import render_brand_header, render_hud_telemetry, get_status_badge_html, render_safe_html
 
 
 def render_overview_page():
@@ -36,27 +36,27 @@ def render_overview_page():
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.markdown(f"""
+        render_safe_html(f"""
         <div class="gov-metric-card">
             <div class="gov-metric-title">[ TELEMETRY // TOTAL SCANS ]</div>
             <div class="gov-metric-value">{trends['total_scans']}</div>
             <div class="gov-metric-delta">▲ Persistent Records Active</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with col2:
-        st.markdown(f"""
+        render_safe_html(f"""
         <div class="gov-metric-card">
             <div class="gov-metric-title">[ TARGETS // AUTHORIZED ]</div>
             <div class="gov-metric-value">{trends['unique_targets']}</div>
             <div class="gov-metric-delta">● Unique Domains Monitored</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with col3:
         avg_score = trends["avg_score"]
         score_color = "#00ff87" if avg_score >= 80 else ("#fbbf24" if avg_score >= 60 else "#ff0055")
-        st.markdown(f"""
+        render_safe_html(f"""
         <div class="gov-metric-card">
             <div class="gov-metric-title">[ INDEX // SECURITY SCORE ]</div>
             <div class="gov-metric-value" style="color: {score_color}; text-shadow: 0 0 15px {score_color}60;">
@@ -64,10 +64,10 @@ def render_overview_page():
             </div>
             <div class="gov-metric-delta">Federal Compliance Baseline</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with col4:
-        st.markdown(f"""
+        render_safe_html(f"""
         <div class="gov-metric-card">
             <div class="gov-metric-title">[ REMEDIATION // RESOLVED ]</div>
             <div class="gov-metric-value" style="color: #00f2fe; text-shadow: 0 0 15px rgba(0, 242, 254, 0.4);">
@@ -75,7 +75,7 @@ def render_overview_page():
             </div>
             <div class="gov-metric-delta">✓ Verified Fixed Posture</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
@@ -325,7 +325,7 @@ def render_overview_page():
             ]
 
         for item in top_issues:
-            st.markdown(f"""
+            render_safe_html(f"""
             <div style="background: rgba(13, 21, 39, 0.85); border: 1px solid rgba(56, 189, 248, 0.2); border-left: 3px solid #ff0055; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.5);">
                 <div>
                     <div style="font-family: 'Rajdhani', sans-serif; font-weight: 700; color: #f8fafc; font-size: 0.95rem;">{item['title']}</div>
@@ -337,7 +337,7 @@ def render_overview_page():
                     </span>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """)
 
     # Recent Scans Table with Cyber Grid Styling
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)

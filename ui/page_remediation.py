@@ -11,7 +11,7 @@ import streamlit as st
 from typing import Dict, Any
 
 from core.database import get_remediation_tasks, update_remediation_status
-from ui.theme import render_brand_header
+from ui.theme import render_brand_header, render_safe_html
 
 
 # Comprehensive remediation templates for all supported configuration checks
@@ -143,7 +143,7 @@ def render_remediation_page():
     """Render the Remediation Lab."""
     render_brand_header("Remediation Lab & Hardening Knowledge Base")
 
-    st.markdown("""
+    render_safe_html("""
     <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; border-left: 4px solid #10b981; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px;">
         <div style="font-weight: 700; color: #34d399; font-size: 0.9rem;">SAFE REMEDIATION PLAYBOOKS</div>
         <div style="font-size: 0.8rem; color: #94a3b8; line-height: 1.5; margin-top: 4px;">
@@ -151,7 +151,7 @@ def render_remediation_page():
             Apply these changes in your staging environment first, test client interactions, and verify with a follow-up scan.
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     tab_playbooks, tab_checklist = st.tabs(["📚 Hardening Playbooks", "✅ Remediation Task Checklist"])
 
@@ -198,7 +198,7 @@ def render_remediation_page():
                 t_color = "#34d399" if t_status == "Verified" else ("#38bdf8" if t_status == "Fixed" else ("#fbbf24" if t_status == "In Progress" else "#f87171"))
 
                 with st.container():
-                    st.markdown(f"""
+                    render_safe_html(f"""
                     <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; margin-bottom: 10px;">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div>
@@ -211,7 +211,7 @@ def render_remediation_page():
                         </div>
                         <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 6px;">Notes: {task['notes'] or 'None'}</div>
                     </div>
-                    """, unsafe_allow_html=True)
+                    """)
 
                     c_sel, c_note, c_act = st.columns([1.5, 2.5, 1])
                     with c_sel:

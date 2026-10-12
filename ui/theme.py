@@ -13,36 +13,31 @@ import streamlit as st
 from typing import Optional
 from core.config import APP_NAME, APP_TAGLINE, APP_VERSION
 
-LOGO_SVG = """
-<svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="shieldCyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00f2fe" />
-      <stop offset="50%" stop-color="#06b6d4" />
-      <stop offset="100%" stop-color="#00ff87" />
-    </linearGradient>
-    <filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="3" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
-    </filter>
-  </defs>
-  <!-- Outer Shield Hex Shell -->
-  <path d="M50 6 L88 23 V52 C88 76 50 94 50 94 C50 94 12 76 12 52 V23 L50 6 Z" 
-        stroke="url(#shieldCyberGrad)" stroke-width="3.5" fill="#070d1e" fill-opacity="0.9" filter="url(#neonGlow)" />
-  <!-- Inner Cyber Core -->
-  <path d="M50 16 L78 30 V50 C78 68 50 82 50 82 C50 82 22 68 22 50 V30 L50 16 Z" 
-        stroke="rgba(0, 242, 254, 0.4)" stroke-width="1.5" stroke-dasharray="4,3" fill="none" />
-  <!-- Circuit Nodes & Core Nodes -->
-  <circle cx="50" cy="35" r="4.5" fill="#00ff87" filter="url(#neonGlow)" />
-  <circle cx="34" cy="56" r="3.5" fill="#00f2fe" />
-  <circle cx="66" cy="56" r="3.5" fill="#00f2fe" />
-  <circle cx="50" cy="74" r="4" fill="#38bdf8" />
-  <!-- Connecting Laser Vectors -->
-  <path d="M50 35 L66 56 L50 74 L34 56 Z" stroke="#00f2fe" stroke-width="2" fill="rgba(6, 182, 212, 0.1)" />
-  <!-- Stylized G Monogram Shield Core -->
-  <path d="M58 44 H45 C39 44 39 64 45 64 H56 V53 H48" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="none" />
-</svg>
-"""
+import textwrap
+
+LOGO_SVG = (
+    '<svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">'
+    '<defs>'
+    '<linearGradient id="shieldCyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">'
+    '<stop offset="0%" stop-color="#00f2fe" />'
+    '<stop offset="50%" stop-color="#06b6d4" />'
+    '<stop offset="100%" stop-color="#00ff87" />'
+    '</linearGradient>'
+    '<filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">'
+    '<feGaussianBlur stdDeviation="2.5" result="blur" />'
+    '<feComposite in="SourceGraphic" in2="blur" operator="over" />'
+    '</filter>'
+    '</defs>'
+    '<path d="M50 6 L88 23 V52 C88 76 50 94 50 94 C50 94 12 76 12 52 V23 L50 6 Z" stroke="url(#shieldCyberGrad)" stroke-width="3.5" fill="#070d1e" fill-opacity="0.9" filter="url(#neonGlow)" />'
+    '<path d="M50 16 L78 30 V50 C78 68 50 82 50 82 C50 82 22 68 22 50 V30 L50 16 Z" stroke="rgba(0, 242, 254, 0.4)" stroke-width="1.5" stroke-dasharray="4,3" fill="none" />'
+    '<circle cx="50" cy="35" r="4.5" fill="#00ff87" filter="url(#neonGlow)" />'
+    '<circle cx="34" cy="56" r="3.5" fill="#00f2fe" />'
+    '<circle cx="66" cy="56" r="3.5" fill="#00f2fe" />'
+    '<circle cx="50" cy="74" r="4" fill="#38bdf8" />'
+    '<path d="M50 35 L66 56 L50 74 L34 56 Z" stroke="#00f2fe" stroke-width="2" fill="rgba(6, 182, 212, 0.1)" />'
+    '<path d="M58 44 H45 C39 44 39 64 45 64 H56 V53 H48" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="none" />'
+    '</svg>'
+)
 
 CUSTOM_CSS = """
 <style>
@@ -408,62 +403,110 @@ section[data-testid="stSidebar"] label:hover {
 """
 
 
+def render_safe_html(html_str: str):
+    """Safely render HTML without Markdown code-block interpretation.
+    
+    Uses native st.html if supported, and strips leading whitespace so markdown parsers
+    never interpret indented markup as <pre><code> blocks.
+    """
+    clean_html = textwrap.dedent(html_str).strip()
+    if hasattr(st, "html"):
+        st.html(clean_html)
+    else:
+        no_indent = "\n".join(line.lstrip() for line in clean_html.splitlines())
+        st.markdown(no_indent, unsafe_allow_html=True)
+
+
 def apply_theme():
     """Inject the advanced futuristic cyber theme into the Streamlit session."""
-    st.markdown(CUSTOM_CSS, unsafe_allow_html=True)
+    render_safe_html(CUSTOM_CSS)
 
 
 def render_brand_header(subtitle: Optional[str] = None):
     """Render the official GOVNEXIS futuristic header bar."""
     sub_text = subtitle or APP_TAGLINE
-    st.markdown(f"""
-    <div class="gov-brand-header">
-        <div style="display: flex; align-items: center; gap: 16px;">
-            {LOGO_SVG}
-            <div>
-                <div class="gov-brand-title">
-                    GOV<span class="emerald">NEXIS</span>
-                    <span style="font-size: 0.7rem; font-weight: 700; color: #00f2fe; background: rgba(0, 242, 254, 0.12); border: 1px solid rgba(0, 242, 254, 0.4); padding: 2px 10px; border-radius: 9999px; text-shadow: none;">v{APP_VERSION} PRO</span>
-                </div>
-                <div class="gov-brand-tagline">{sub_text}</div>
-            </div>
-        </div>
-        <div style="text-align: right;">
-            <div style="display: flex; align-items: center; justify-content: flex-end;">
-                <span class="gov-pulse-dot"></span>
-                <span style="font-family: 'Orbitron', sans-serif; font-size: 0.8rem; font-weight: 700; color: #00ff87; letter-spacing: 0.05em;">DEFENSE POSTURE ACTIVE</span>
-            </div>
-            <div style="font-family: 'Rajdhani', sans-serif; font-size: 0.75rem; color: #64748b; margin-top: 2px;">CISA BOD 18-01 // NIST SP 800-52</div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    header_html = (
+        f'<div class="gov-brand-header">'
+        f'<div style="display: flex; align-items: center; gap: 16px;">'
+        f'{LOGO_SVG}'
+        f'<div>'
+        f'<div class="gov-brand-title">'
+        f'GOV<span class="emerald">NEXIS</span>'
+        f'<span style="font-size: 0.7rem; font-weight: 700; color: #00f2fe; background: rgba(0, 242, 254, 0.12); border: 1px solid rgba(0, 242, 254, 0.4); padding: 2px 10px; border-radius: 9999px; text-shadow: none;">v{APP_VERSION} PRO</span>'
+        f'</div>'
+        f'<div class="gov-brand-tagline">{sub_text}</div>'
+        f'</div>'
+        f'</div>'
+        f'<div style="text-align: right;">'
+        f'<div style="display: flex; align-items: center; justify-content: flex-end;">'
+        f'<span class="gov-pulse-dot"></span>'
+        f'<span style="font-family: \'Orbitron\', sans-serif; font-size: 0.8rem; font-weight: 700; color: #00ff87; letter-spacing: 0.05em;">DEFENSE POSTURE ACTIVE</span>'
+        f'</div>'
+        f'<div style="font-family: \'Rajdhani\', sans-serif; font-size: 0.75rem; color: #64748b; margin-top: 2px;">CISA BOD 18-01 // NIST SP 800-52</div>'
+        f'</div>'
+        f'</div>'
+    )
+    render_safe_html(header_html)
+
+
+def render_sidebar_brand():
+    """Render the sidebar branding header with logo, wordmark, and subtitle."""
+    brand_html = (
+        f'<div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(0, 242, 254, 0.2); margin-bottom: 16px;">'
+        f'{LOGO_SVG}'
+        f'<div>'
+        f'<div style="font-family: \'Orbitron\', sans-serif; font-size: 1.3rem; font-weight: 800; color: #f8fafc; letter-spacing: 0.05em;">'
+        f'GOV<span style="color: #00ff87;">NEXIS</span>'
+        f'</div>'
+        f'<div style="font-family: \'Rajdhani\', sans-serif; font-size: 0.75rem; color: #94a3b8; letter-spacing: 0.03em;">Security Audit Platform</div>'
+        f'</div>'
+        f'</div>'
+    )
+    render_safe_html(brand_html)
+
+
+def render_sidebar_compliance():
+    """Render the sidebar active compliance badge container."""
+    compliance_html = (
+        '<div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(0, 242, 254, 0.25); border-radius: 8px; padding: 12px; margin-top: 10px;">'
+        '<div style="font-family: \'Orbitron\', sans-serif; font-size: 0.75rem; font-weight: 700; color: #38bdf8; letter-spacing: 0.05em;">ACTIVE COMPLIANCE</div>'
+        '<div style="font-family: \'Rajdhani\', sans-serif; font-size: 0.75rem; color: #94a3b8; margin-top: 4px; line-height: 1.4;">'
+        'CISA BOD 18-01<br>'
+        'NIST SP 800-52r2<br>'
+        'OWASP Secure Headers'
+        '</div>'
+        '</div>'
+    )
+    render_safe_html(compliance_html)
 
 
 def render_hud_telemetry():
     """Render tactical live system telemetry HUD bar."""
-    st.markdown("""
-    <div class="gov-hud-bar">
-        <div><span class="gov-pulse-dot"></span>SYSTEM STATUS: <strong>OPERATIONAL</strong></div>
-        <div>DEFENSIVE RULES: <strong>10 ACTIVE</strong></div>
-        <div>SSRF GUARD: <strong>ENFORCED (RFC1918 FILTER)</strong></div>
-        <div>ENCRYPTION MONITOR: <strong>TLS 1.3 / HSTS COMPLIANT</strong></div>
-    </div>
-    """, unsafe_allow_html=True)
+    hud_html = (
+        '<div class="gov-hud-bar">'
+        '<div><span class="gov-pulse-dot"></span>SYSTEM STATUS: <strong>OPERATIONAL</strong></div>'
+        '<div>DEFENSIVE RULES: <strong>10 ACTIVE</strong></div>'
+        '<div>SSRF GUARD: <strong>ENFORCED (RFC1918 FILTER)</strong></div>'
+        '<div>ENCRYPTION MONITOR: <strong>TLS 1.3 / HSTS COMPLIANT</strong></div>'
+        '</div>'
+    )
+    render_safe_html(hud_html)
 
 
 def render_demo_banner():
     """Render an explicit notice that local demo testing is active and isolated."""
-    st.markdown("""
-    <div class="demo-banner">
-        <span style="font-size: 1.6rem;">🛡️</span>
-        <div>
-            <div style="font-family: 'Orbitron', sans-serif; font-weight: 700; color: #00f2fe; font-size: 0.95rem; letter-spacing: 0.04em;">ISOLATED LOCAL SANDBOX ENVIRONMENT</div>
-            <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 2px;">
-                Target is strictly allowlisted to <code>127.0.0.1:8765</code>. Zero external network packets dispatched.
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    demo_html = (
+        '<div class="demo-banner">'
+        '<span style="font-size: 1.6rem;">🛡️</span>'
+        '<div>'
+        '<div style="font-family: \'Orbitron\', sans-serif; font-weight: 700; color: #00f2fe; font-size: 0.95rem; letter-spacing: 0.04em;">ISOLATED LOCAL SANDBOX ENVIRONMENT</div>'
+        '<div style="font-size: 0.8rem; color: #94a3b8; margin-top: 2px;">'
+        'Target is strictly allowlisted to <code>127.0.0.1:8765</code>. Zero external network packets dispatched.'
+        '</div>'
+        '</div>'
+        '</div>'
+    )
+    render_safe_html(demo_html)
 
 
 def get_status_badge_html(status: str) -> str:

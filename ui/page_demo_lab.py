@@ -14,7 +14,7 @@ from core.config import LOCAL_DEMO_URL, LOCAL_DEMO_HOST, LOCAL_DEMO_PORT
 from core.mock_site import start_mock_server, stop_mock_server, get_demo_status, DEMO_STATE, MockServerState
 from core.scanner import execute_scan
 from core.database import save_scan
-from ui.theme import render_brand_header, render_demo_banner, get_status_badge_html
+from ui.theme import render_brand_header, render_demo_banner, get_status_badge_html, render_safe_html
 
 
 def render_demo_lab_page():
@@ -30,7 +30,7 @@ def render_demo_lab_page():
     col_st1, col_st2, col_st3 = st.columns(3)
 
     with col_st1:
-        st.markdown(f"""
+        render_safe_html(f"""
         <div class="gov-metric-card">
             <div class="gov-metric-title">SANDBOX SERVER STATUS</div>
             <div class="gov-metric-value" style="color: {'#10b981' if status['running'] else '#ef4444'}; font-size: 1.4rem;">
@@ -38,12 +38,12 @@ def render_demo_lab_page():
             </div>
             <div class="gov-metric-delta">Bound to {status['host']}:{status['port']}</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with col_st2:
         mode_text = status['mode'].upper()
         mode_color = "#34d399" if status['mode'] == MockServerState.MODE_HARDENED else "#f87171"
-        st.markdown(f"""
+        render_safe_html(f"""
         <div class="gov-metric-card">
             <div class="gov-metric-title">CURRENT SIMULATION STATE</div>
             <div class="gov-metric-value" style="color: {mode_color}; font-size: 1.4rem;">
@@ -53,10 +53,10 @@ def render_demo_lab_page():
                 {'Hardened Defense Posture' if status['mode'] == MockServerState.MODE_HARDENED else 'Vulnerable Baseline Posture'}
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with col_st3:
-        st.markdown(f"""
+        render_safe_html(f"""
         <div class="gov-metric-card">
             <div class="gov-metric-title">TARGET URL</div>
             <div class="gov-metric-value" style="font-size: 1.2rem; color: #38bdf8;">
@@ -64,7 +64,7 @@ def render_demo_lab_page():
             </div>
             <div class="gov-metric-delta">Safe localhost allowlist</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
 
@@ -132,13 +132,13 @@ def render_demo_lab_page():
             if has_baseline:
                 b_res = st.session_state["demo_baseline_scan"]
                 b_score = b_res.score_report.final_score
-                st.markdown(f"""
+                render_safe_html(f"""
                 <div style="background: #0f172a; border: 2px solid #ef4444; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
                     <div style="font-size: 0.8rem; color: #94a3b8;">BASELINE SCORE</div>
                     <div style="font-size: 2.4rem; font-weight: 900; color: #ef4444;">{b_score}/100 (Grade {b_res.score_report.letter_grade})</div>
                     <div style="font-size: 0.8rem; color: #f87171;">Critical gaps: Missing HSTS, CSP, XFO, weak session cookie</div>
                 </div>
-                """, unsafe_allow_html=True)
+                """)
                 for f in b_res.findings:
                     if f.status in ("FAIL", "WARNING"):
                         st.caption(f"✕ {f.title}: {f.evidence[:60]}")
@@ -150,13 +150,13 @@ def render_demo_lab_page():
             if has_hardened:
                 h_res = st.session_state["demo_hardened_scan"]
                 h_score = h_res.score_report.final_score
-                st.markdown(f"""
+                render_safe_html(f"""
                 <div style="background: #0f172a; border: 2px solid #10b981; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
                     <div style="font-size: 0.8rem; color: #94a3b8;">VERIFIED SCORE</div>
                     <div style="font-size: 2.4rem; font-weight: 900; color: #10b981;">{h_score}/100 (Grade {h_res.score_report.letter_grade})</div>
                     <div style="font-size: 0.8rem; color: #34d399;">Defense-in-depth verified: All headers & secure cookies active</div>
                 </div>
-                """, unsafe_allow_html=True)
+                """)
                 for f in h_res.findings:
                     if f.status == "PASS":
                         st.caption(f"✓ {f.title}")

@@ -14,7 +14,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-from ui.theme import apply_theme, LOGO_SVG
+from ui.theme import apply_theme, LOGO_SVG, render_sidebar_brand, render_sidebar_compliance
 from core.config import APP_NAME, APP_TAGLINE, APP_VERSION
 from core.database import init_db, seed_demo_history
 from core.mock_site import start_mock_server
@@ -42,17 +42,7 @@ def main():
 
     # Sidebar Navigation
     with st.sidebar:
-        st.markdown(f"""
-        <div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #1e293b; margin-bottom: 16px;">
-            {LOGO_SVG}
-            <div>
-                <div style="font-size: 1.3rem; font-weight: 800; color: #f8fafc; letter-spacing: 0.05em;">
-                    GOV<span style="color: #10b981;">NEXIS</span>
-                </div>
-                <div style="font-size: 0.75rem; color: #64748b;">Security Audit Platform</div>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        render_sidebar_brand()
 
         nav_options = [
             "1. Overview",
@@ -82,16 +72,7 @@ def main():
         )
 
         st.markdown("---")
-        st.markdown("""
-        <div style="background: rgba(15, 23, 42, 0.8); border: 1px solid #1e293b; border-radius: 8px; padding: 12px; margin-top: 10px;">
-            <div style="font-size: 0.75rem; font-weight: 700; color: #38bdf8;">ACTIVE COMPLIANCE</div>
-            <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 2px;">
-                CISA BOD 18-01<br>
-                NIST SP 800-52r2<br>
-                OWASP Secure Headers
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        render_sidebar_compliance()
 
         st.caption(f"GOVNEXIS Core v{APP_VERSION} (Defensive)")
 

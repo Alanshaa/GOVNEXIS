@@ -12,14 +12,14 @@ import pandas as pd
 import json
 
 from core.database import get_all_scans, get_scan
-from ui.theme import render_brand_header, get_status_badge_html
+from ui.theme import render_brand_header, get_status_badge_html, render_safe_html
 
 
 def render_verification_page():
     """Render Before-and-After Verification UI."""
     render_brand_header("Before-and-After Verification Engine")
 
-    st.markdown("""
+    render_safe_html("""
     <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; border-left: 4px solid #10b981; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px;">
         <div style="font-weight: 700; color: #34d399; font-size: 0.9rem;">EMPIRICAL VERIFICATION WORKFLOW</div>
         <div style="font-size: 0.8rem; color: #94a3b8; line-height: 1.5; margin-top: 4px;">
@@ -27,7 +27,7 @@ def render_verification_page():
             Compare your baseline scan before applying remediation against your post-hardening verification scan.
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     all_scans = get_all_scans(limit=50)
     if len(all_scans) < 2:
@@ -82,25 +82,25 @@ def render_verification_page():
     delta_sign = f"+{delta_score}" if delta_score > 0 else str(delta_score)
 
     with c_card1:
-        st.markdown(f"""
+        render_safe_html(f"""
         <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 18px; text-align: center;">
             <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">BASELINE (BEFORE)</div>
             <div style="font-size: 2.2rem; font-weight: 900; color: #f8fafc; margin: 4px 0;">{score_a}<span style="font-size: 1rem; color: #64748b;">/100</span></div>
             <div style="font-size: 0.8rem; color: #94a3b8;">Grade: {scan_a['letter_grade']} ({scan_a['timestamp'][:16]})</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with c_card2:
-        st.markdown(f"""
+        render_safe_html(f"""
         <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 10px; padding: 18px; text-align: center;">
             <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">RESCAN (AFTER)</div>
             <div style="font-size: 2.2rem; font-weight: 900; color: #f8fafc; margin: 4px 0;">{score_b}<span style="font-size: 1rem; color: #64748b;">/100</span></div>
             <div style="font-size: 0.8rem; color: #94a3b8;">Grade: {scan_b['letter_grade']} ({scan_b['timestamp'][:16]})</div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     with c_card3:
-        st.markdown(f"""
+        render_safe_html(f"""
         <div style="background: #0f172a; border: 2px solid {delta_color}; border-radius: 10px; padding: 18px; text-align: center;">
             <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 700;">VERIFICATION DELTA</div>
             <div style="font-size: 2.2rem; font-weight: 900; color: {delta_color}; margin: 4px 0;">{delta_sign} pts</div>
@@ -108,7 +108,7 @@ def render_verification_page():
                 {"Significant Improvement Verified ✓" if delta_score > 10 else "Measurable Change" if delta_score != 0 else "Identical Posture"}
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """)
 
     # Detailed Rule-by-Rule Differential Analysis
     st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
@@ -147,7 +147,7 @@ def render_verification_page():
     with tab_res:
         if resolved_items:
             for title, before, after in resolved_items:
-                st.markdown(f"""
+                render_safe_html(f"""
                 <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-weight: 700; color: #34d399;">✓ {title}</span>
                     <div>
@@ -155,19 +155,19 @@ def render_verification_page():
                         <span style="color: #34d399; font-weight: 800; font-size: 0.9rem;">➔ {after}</span>
                     </div>
                 </div>
-                """, unsafe_allow_html=True)
+                """)
         else:
             st.info("No previously failed findings were resolved between these two scans.")
 
     with tab_rem:
         if remaining_items:
             for title, before, after in remaining_items:
-                st.markdown(f"""
+                render_safe_html(f"""
                 <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 12px 16px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
                     <span style="font-weight: 700; color: #fbbf24;">⚠ {title}</span>
                     <span style="color: #fbbf24; font-size: 0.85rem;">Status still {after}</span>
                 </div>
-                """, unsafe_allow_html=True)
+                """)
         else:
             st.success("All configuration checks passed in the follow-up scan!")
 

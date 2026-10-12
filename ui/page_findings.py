@@ -11,7 +11,7 @@ import pandas as pd
 from typing import List, Dict, Any
 
 from core.database import get_connection, update_remediation_status
-from ui.theme import render_brand_header, get_status_badge_html, get_severity_badge_html
+from ui.theme import render_brand_header, get_status_badge_html, get_severity_badge_html, render_safe_html
 
 
 def render_findings_page():
@@ -43,7 +43,7 @@ def render_findings_page():
         return
 
     # Prioritization Methodology Notice
-    st.markdown("""
+    render_safe_html("""
     <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; border-left: 4px solid #10b981; padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
         <div style="font-weight: 700; color: #34d399; font-size: 0.85rem;">TRANSPARENT RULE-BASED PRIORITIZATION MATRIX</div>
         <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 3px;">
@@ -51,7 +51,7 @@ def render_findings_page():
             Transport encryption and script injection defenses are ranked with highest priority.
         </div>
     </div>
-    """, unsafe_allow_html=True)
+    """)
 
     # Filter Toolbar
     f_col1, f_col2, f_col3, f_col4 = st.columns(4)
@@ -103,13 +103,13 @@ def render_findings_page():
             col_l, col_r = st.columns([3, 1])
 
             with col_l:
-                st.markdown(f"""
+                render_safe_html(f"""
                 <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
                     {status_pill} {sev_pill}
                     <span style="font-size: 0.8rem; color: #94a3b8;">Target: <code>{finding['hostname']}</code></span>
                     <span style="font-size: 0.8rem; color: #64748b;">Detected: {finding['scan_time'][:19]}</span>
                 </div>
-                """, unsafe_allow_html=True)
+                """)
 
                 st.markdown(f"**Observed Evidence:**")
                 st.code(finding["evidence"], language="http")
@@ -119,12 +119,12 @@ def render_findings_page():
                 st.markdown(f"**Recommended Remediation:** {finding['recommended_action']}")
 
             with col_r:
-                st.markdown(f"""
+                render_safe_html(f"""
                 <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 12px; margin-bottom: 12px;">
                     <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">TRACKING STATUS</div>
                     <div style="font-size: 1.1rem; font-weight: 800; color: {v_color}; margin: 4px 0;">{v_status}</div>
                 </div>
-                """, unsafe_allow_html=True)
+                """)
 
                 st.markdown("**Update Status:**")
                 new_status = st.selectbox(
