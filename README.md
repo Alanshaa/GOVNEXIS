@@ -96,35 +96,37 @@ GOVNEXIS is an **auditing and hardening platform**, not an offensive exploitatio
 
 ---
 
-## 🚀 Installation & Launch (Linux)
+🚀 Installation & Launch
 
-### 1. Prerequisites
-Ensure Python 3.10+ is installed on your Linux system.
+GOVNEXIS is a Python-based website security auditing platform.
 
-### 2. Virtual Environment Setup
-```bash
-# Clone or navigate to the repository directory
+Prerequisites
+
+- Python 3.10+
+- Git
+
+Linux / macOS
+
+git clone YOUR_GITHUB_REPOSITORY_URL
 cd GOVNEXIS
-
-# Create a virtual environment
 python3 -m venv .venv
-
-# Activate the virtual environment
 source .venv/bin/activate
-
-# Install required dependencies
 pip install -r requirements.txt
-```
-
-### 3. Launch GOVNEXIS
-```bash
-# Run the Streamlit web application
 python -m streamlit run app.py
-```
-By default, the platform will be available at:
-👉 **`http://localhost:8501`**
 
----
+Windows
+
+git clone YOUR_GITHUB_REPOSITORY_URL
+cd GOVNEXIS
+py -m venv .venv
+.\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -m streamlit run app.py
+
+Open the Application
+
+Visit http://localhost:8501 in your browser.
+
 
 ## 🧪 Running Automated Tests
 
@@ -140,50 +142,9 @@ pytest -v tests
 
 ---
 
-## 🎮 Step-by-Step Hackathon Demo Script (3 Minutes)
-
-Follow this script to deliver a compelling live demonstration:
-
-1. **Open the Executive Dashboard (0:00 - 0:30)**:
-   - Navigate to `http://localhost:8501`.
-   - Show the **Executive Security Dashboard** with KPI cards (Scans, Targets, Average Score, Resolved Issues) and Plotly charts.
-   - Click *"🚀 Load Hackathon Sample Scans (Demo)"* to instantly demonstrate rich historical trend analytics.
-
-2. **Run the Local Sandbox Baseline Scan (0:30 - 1:15)**:
-   - Navigate to **"8. Local Demo Lab"** in the sidebar.
-   - Point out the **Sandbox Server Status (ONLINE at 127.0.0.1:8765)** and the clear isolated demo banner.
-   - Click **"1️⃣ Run Baseline Demo Scan"**.
-   - Observe the baseline score (e.g., 20–35/100, Grade F) with highlighted critical findings: missing CSP, missing HSTS, missing X-Frame-Options, and insecure cookies.
-
-3. **Apply Hardening Fixes & Rescan (1:15 - 2:00)**:
-   - Click **"2️⃣ Apply Demo Fixes (Harden)"** to simulate applying production web server configuration.
-   - Click **"3️⃣ Rescan Hardened Demo"**.
-   - Watch the score immediately update to **95/100 (Grade A+)**, demonstrating a **+75 pt verification delta**!
-
-4. **Showcase the Remediation Lab & Reports (2:00 - 3:00)**:
-   - Navigate to **"4. Remediation Lab"** to show production-ready Nginx, Apache, and Caddy snippets with compatibility notes.
-   - Navigate to **"5. Before & After Verification"** to show the side-by-side header diff viewer.
-   - Navigate to **"7. Reports"** and click **"📄 Download PDF Report"** or preview the interactive HTML report to demonstrate shareable deliverables for executive leadership.
-
----
-
-## 🗺️ Project Roadmap
-
-- [x] Non-destructive HTTP header and cookie audit engine
-- [x] SSRF-safe network validator and DNS rebinding protections
-- [x] Transparent, explainable CISA/NIST-aligned scoring model
-- [x] Remediation Lab with multi-server configuration snippets
-- [x] Before-and-after empirical verification engine
-- [x] Isolated local demo sandbox on port 8765
-- [x] Multi-format report export (PDF, HTML, JSON, CSV)
-- [ ] Automated scheduled scans via cron integration
-- [ ] Webhook alerts to agency SIEM / Slack / Microsoft Teams
-- [ ] Subdomain inventory enumeration via public Certificate Transparency (CT) logs
-
----
 
 ## 👥 Contributors & Acknowledgements
 
-- **GOVNEXIS Security Engineering Team**
+- **GOVNEXIS Security Engineering Team , members are Muhammed Alansha,Karan,Joceln Olivia and Charu Netra**
 - Built for government agency transparency and citizen digital trust.
 - Standards reference: CISA BOD 18-01, NIST SP 800-52 Rev. 2, OWASP Secure Headers.
