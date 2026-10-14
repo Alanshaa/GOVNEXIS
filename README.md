@@ -107,21 +107,21 @@ Prerequisites
 
 Linux / macOS
 
-git clone YOUR_GITHUB_REPOSITORY_URL
-cd GOVNEXIS
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python -m streamlit run app.py
+git clone YOUR_GITHUB_REPOSITORY_URL,
+cd GOVNEXIS,
+python3 -m venv .venv,
+source .venv/bin/activate,
+pip install -r requirements.txt,
+python -m streamlit run app.py,
 
 Windows
 
-git clone YOUR_GITHUB_REPOSITORY_URL
-cd GOVNEXIS
-py -m venv .venv
-.\.venv\Scripts\Activate.ps1
-pip install -r requirements.txt
-python -m streamlit run app.py
+git clone YOUR_GITHUB_REPOSITORY_URL,
+cd GOVNEXIS,
+py -m venv .venv,
+.\.venv\Scripts\Activate.ps1,
+pip install -r requirements.txt,
+python -m streamlit run app.py,
 
 Open the Application
 
