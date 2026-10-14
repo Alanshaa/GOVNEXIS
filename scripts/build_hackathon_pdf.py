@@ -613,11 +613,11 @@ def build_pdf(output_path: str):
     story.append(Paragraph("8. The 5-Step Flawless Live Demo Checklist ('The Golden Path')", h1_style))
     
     demo_steps = [
-        ("Step 1: Open Local Demo Lab", "Navigate to page '8. Local Demo Lab' from the sidebar.", "Shows judges that the test target is running safely on isolated localhost port 8765 without requiring an external internet connection."),
-        ("Step 2: Run Baseline Demo Scan", "Click '1️⃣ Run Baseline Demo Scan'.", "Result renders immediately: Security Score 35/100 (Grade F). Highlight missing HSTS, CSP, and permissive cookies."),
-        ("Step 3: Show Remediation Lab", "Switch to page '4. Remediation Lab'.", "Demonstrates the copyable Nginx and Apache playbooks. Explain: 'We don't leave engineers guessing; we give them the exact code.'"),
-        ("Step 4: Demonstrate Verification", "Return to Demo Lab, click '2️⃣ Apply Demo Fixes', then '3️⃣ Rescan Hardened Demo'.", "Magic Moment: Score jumps to 95/100 (Grade A+). Show the green delta pill displaying '+60 points verified improvement'."),
-        ("Step 5: Export Executive Report", "Click '📥 Export PDF Report' or 'HTML Report'.", "Download and open the executive assessment report. Concludes the demo with concrete, deliverable proof."),
+        ("Step 1: Open Local Demo Lab", "Navigate to page 'Demo Lab' from the sidebar.", "Shows judges that the test target is running safely on isolated localhost port 8765 without requiring an external internet connection."),
+        ("Step 2: Run Baseline Demo Scan", "Click 'Run Baseline Scan'.", "Result renders immediately: Security Score 35/100 (Grade F). Highlight missing HSTS, CSP, and permissive cookies."),
+        ("Step 3: Show Remediation Lab", "Switch to page 'Remediation'.", "Demonstrates the copyable Nginx and Apache playbooks. Explain: 'We don't leave engineers guessing; we give them the exact code.'"),
+        ("Step 4: Demonstrate Verification", "Return to Demo Lab, click 'Apply Hardened Config', then 'Rescan Hardened Target'.", "Magic Moment: Score jumps to 95/100 (Grade A+). Show the green delta pill displaying '+60 points verified improvement'."),
+        ("Step 5: Export Executive Report", "Click 'Download PDF' or 'Download HTML'.", "Download and open the executive assessment report. Concludes the demo with concrete, deliverable proof."),
     ]
 
     d_table_data = [[Paragraph("<b>Demo Step</b>", table_cell_bold), Paragraph("<b>Presenter Action</b>", table_cell_bold), Paragraph("<b>Key Talking Point for Judges</b>", table_cell_bold)]]
@@ -680,7 +680,7 @@ def build_pdf(output_path: str):
     # Hackathon Presentation Pro-Tips Banner
     tip_data = [[
         Paragraph(
-            "<b>🏆 TOP 3 HACKATHON PRESENTATION GOLDEN RULES:</b><br/>"
+            "<b>TOP 3 HACKATHON PRESENTATION GOLDEN RULES:</b><br/>"
             "• <b>Never rely on external internet for your live demo:</b> Always use the built-in <b>Local Demo Lab</b> (port 8765). It works 100% offline and will never fail on hotel Wi-Fi.<br/>"
             "• <b>Lead with the outcome, not just the code:</b> Judges care that government sites are protected and compliance is verified (+60 pt delta).<br/>"
             "• <b>Show testing & code quality:</b> Mention that GOVNEXIS has <b>44 automated tests</b> covering scoring, SSRF, reporting, and UI integrity.",

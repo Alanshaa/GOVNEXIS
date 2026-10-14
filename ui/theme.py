@@ -1,536 +1,662 @@
-"""Advanced Futuristic Cyber Theme & Aesthetic System for GOVNEXIS.
+"""Professional Theme System for GOVNEXIS.
 
-Visual Design Language:
-- Deep Void Cyberpunk Foundation (#030712, #070d1e)
-- Holographic Neon Cyan (#00f2fe, #06b6d4, #38bdf8)
-- Laser Matrix Emerald (#00ff87, #10b981, #34d399)
-- Plasma Purple / Indigo Accents (#8b5cf6, #6366f1)
-- Typography: Orbitron, Rajdhani, JetBrains Mono, Inter
-- HUD Glassmorphism, Neon Edge Glows, Corner Accents, Animated Beacons
+Provides centralized design tokens for dark and light themes, a persistent
+theme switcher, and reusable UI component helpers (badges, headers, cards).
+All colours are defined here — no hardcoded colour values should appear in
+individual page files.
 """
 
+import os
+import textwrap
 import streamlit as st
-from typing import Optional
+from typing import Optional, Dict
+
 from core.config import APP_NAME, APP_TAGLINE, APP_VERSION
 
-import textwrap
+THEME_DARK = "dark"
+THEME_LIGHT = "light"
 
-LOGO_SVG = (
-    '<svg width="48" height="48" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">'
-    '<defs>'
-    '<linearGradient id="shieldCyberGrad" x1="0%" y1="0%" x2="100%" y2="100%">'
-    '<stop offset="0%" stop-color="#00f2fe" />'
-    '<stop offset="50%" stop-color="#06b6d4" />'
-    '<stop offset="100%" stop-color="#00ff87" />'
-    '</linearGradient>'
-    '<filter id="neonGlow" x="-20%" y="-20%" width="140%" height="140%">'
-    '<feGaussianBlur stdDeviation="2.5" result="blur" />'
-    '<feComposite in="SourceGraphic" in2="blur" operator="over" />'
-    '</filter>'
-    '</defs>'
-    '<path d="M50 6 L88 23 V52 C88 76 50 94 50 94 C50 94 12 76 12 52 V23 L50 6 Z" stroke="url(#shieldCyberGrad)" stroke-width="3.5" fill="#070d1e" fill-opacity="0.9" filter="url(#neonGlow)" />'
-    '<path d="M50 16 L78 30 V50 C78 68 50 82 50 82 C50 82 22 68 22 50 V30 L50 16 Z" stroke="rgba(0, 242, 254, 0.4)" stroke-width="1.5" stroke-dasharray="4,3" fill="none" />'
-    '<circle cx="50" cy="35" r="4.5" fill="#00ff87" filter="url(#neonGlow)" />'
-    '<circle cx="34" cy="56" r="3.5" fill="#00f2fe" />'
-    '<circle cx="66" cy="56" r="3.5" fill="#00f2fe" />'
-    '<circle cx="50" cy="74" r="4" fill="#38bdf8" />'
-    '<path d="M50 35 L66 56 L50 74 L34 56 Z" stroke="#00f2fe" stroke-width="2" fill="rgba(6, 182, 212, 0.1)" />'
-    '<path d="M58 44 H45 C39 44 39 64 45 64 H56 V53 H48" stroke="#ffffff" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" fill="none" />'
-    '</svg>'
+# ---------------------------------------------------------------------------
+# Theme persistence (file-backed so it survives Streamlit reruns)
+# ---------------------------------------------------------------------------
+_THEME_FILE = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), ".theme_preference"
 )
 
-CUSTOM_CSS = """
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800;900&family=Rajdhani:wght@500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap');
 
-/* Global Variables */
-:root {
-    --bg-void: #030712;
-    --bg-surface: #070d1e;
-    --bg-surface-elevated: #0d1527;
-    --accent-cyan-neon: #00f2fe;
-    --accent-cyan: #06b6d4;
-    --accent-emerald-neon: #00ff87;
-    --accent-emerald: #10b981;
-    --accent-purple: #8b5cf6;
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --text-muted: #64748b;
-    --border-glow: rgba(0, 242, 254, 0.3);
-    --border-subtle: rgba(30, 41, 59, 0.7);
+def get_current_theme() -> str:
+    """Return the active theme name: ``'dark'`` or ``'light'``."""
+    if "govnexis_theme" in st.session_state:
+        return st.session_state["govnexis_theme"]
+    if os.path.exists(_THEME_FILE):
+        try:
+            with open(_THEME_FILE, "r") as fh:
+                pref = fh.read().strip()
+                if pref in ("dark", "light"):
+                    st.session_state["govnexis_theme"] = pref
+                    return pref
+        except OSError:
+            pass
+    st.session_state["govnexis_theme"] = "dark"
+    return "dark"
+
+
+def set_theme(theme: str) -> None:
+    """Persist the chosen theme to session state and disk."""
+    if theme not in ("dark", "light"):
+        return
+    st.session_state["govnexis_theme"] = theme
+    try:
+        with open(_THEME_FILE, "w") as fh:
+            fh.write(theme)
+    except OSError:
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Design tokens — every colour used in the application lives here
+# ---------------------------------------------------------------------------
+DARK_TOKENS: Dict[str, str] = {
+    "bg":               "#171B22",
+    "surface":          "#202630",
+    "surface_elevated": "#272F3A",
+    "text_primary":     "#F1F4F8",
+    "text_secondary":   "#A8B2C0",
+    "text_muted":       "#6B7280",
+    "border":           "#394352",
+    "accent":           "#36A779",
+    "accent_hover":     "#2E9068",
+    "accent_bg":        "rgba(54,167,121,0.12)",
+    "accent_secondary": "#4D9DAD",
+    "accent_teal":      "#4D9DAD",
+    "warning":          "#D9A441",
+    "warning_bg":       "rgba(217,164,65,0.12)",
+    "error":            "#D76565",
+    "error_bg":         "rgba(215,101,101,0.12)",
+    "success":          "#36A779",
+    "success_bg":       "rgba(54,167,121,0.12)",
+    "sev_critical":     "#D76565",
+    "sev_critical_bg":  "rgba(215,101,101,0.15)",
+    "sev_high":         "#E08A4A",
+    "sev_high_bg":      "rgba(224,138,74,0.15)",
+    "sev_medium":       "#D9A441",
+    "sev_medium_bg":    "rgba(217,164,65,0.15)",
+    "sev_low":          "#4D9DAD",
+    "sev_low_bg":       "rgba(77,157,173,0.15)",
+    "sev_info":         "#7C8694",
+    "sev_info_bg":      "rgba(124,134,148,0.15)",
+    "chart_grid":       "rgba(57,67,82,0.5)",
+    "chart_text":       "#A8B2C0",
 }
 
-/* Background Atmosphere */
-.stApp {
-    background-color: var(--bg-void) !important;
-    background-image: 
-        radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.16) 0%, transparent 45%),
-        radial-gradient(circle at 90% 20%, rgba(16, 185, 129, 0.12) 0%, transparent 40%),
-        radial-gradient(circle at 10% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 40%),
-        linear-gradient(to right, rgba(14, 23, 42, 0.45) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(14, 23, 42, 0.45) 1px, transparent 1px) !important;
-    background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px !important;
-    color: var(--text-primary) !important;
-    font-family: 'Inter', -apple-system, sans-serif !important;
+LIGHT_TOKENS: Dict[str, str] = {
+    "bg":               "#F4F6F8",
+    "surface":          "#FFFFFF",
+    "surface_elevated": "#FFFFFF",
+    "text_primary":     "#202833",
+    "text_secondary":   "#5E6875",
+    "text_muted":       "#9CA3AF",
+    "border":           "#DCE2E8",
+    "accent":           "#187A56",
+    "accent_hover":     "#15694A",
+    "accent_bg":        "rgba(24,122,86,0.08)",
+    "accent_secondary": "#267787",
+    "accent_teal":      "#267787",
+    "warning":          "#B8860B",
+    "warning_bg":       "rgba(184,134,11,0.08)",
+    "error":            "#C0392B",
+    "error_bg":         "rgba(192,57,43,0.08)",
+    "success":          "#187A56",
+    "success_bg":       "rgba(24,122,86,0.08)",
+    "sev_critical":     "#C0392B",
+    "sev_critical_bg":  "rgba(192,57,43,0.10)",
+    "sev_high":         "#D35400",
+    "sev_high_bg":      "rgba(211,84,0,0.10)",
+    "sev_medium":       "#B8860B",
+    "sev_medium_bg":    "rgba(184,134,11,0.10)",
+    "sev_low":          "#267787",
+    "sev_low_bg":       "rgba(38,119,135,0.10)",
+    "sev_info":         "#6B7280",
+    "sev_info_bg":      "rgba(107,114,128,0.10)",
+    "chart_grid":       "rgba(220,226,232,0.8)",
+    "chart_text":       "#5E6875",
 }
 
-/* Typography Overrides */
-h1, h2, h3, .cyber-font {
-    font-family: 'Orbitron', 'Rajdhani', sans-serif !important;
-    letter-spacing: 0.04em !important;
-}
 
-h4, h5, h6 {
-    font-family: 'Rajdhani', sans-serif !important;
-    letter-spacing: 0.03em !important;
-    font-weight: 700 !important;
-}
+def get_tokens() -> Dict[str, str]:
+    """Return the design-token dictionary for the active theme."""
+    return DARK_TOKENS if get_current_theme() == "dark" else LIGHT_TOKENS
 
-code, pre {
-    font-family: 'JetBrains Mono', monospace !important;
-}
 
-/* Sidebar Ultra Styling */
-section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #050a17 0%, #03060f 100%) !important;
-    border-right: 1px solid rgba(0, 242, 254, 0.2) !important;
-    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.8) !important;
-}
+# ---------------------------------------------------------------------------
+# Logo SVG — clean professional shield with checkmark
+# ---------------------------------------------------------------------------
+def get_logo_svg(size: int = 32) -> str:
+    """Return the GOVNEXIS shield logo sized to *size* px."""
+    t = get_tokens()
+    return (
+        f'<svg width="{size}" height="{size}" viewBox="0 0 100 100" '
+        f'fill="none" xmlns="http://www.w3.org/2000/svg">'
+        f'<path d="M50 8 L85 25 V52 C85 74 50 92 50 92 '
+        f'C50 92 15 74 15 52 V25 L50 8 Z" '
+        f'stroke="{t["accent"]}" stroke-width="4" fill="{t["surface_elevated"]}" />'
+        f'<path d="M50 20 L75 33 V52 C75 67 50 80 50 80 '
+        f'C50 80 25 67 25 52 V33 L50 20 Z" '
+        f'stroke="{t["border"]}" stroke-width="1.5" fill="none" />'
+        f'<path d="M40 52 L47 59 L62 42" stroke="{t["accent"]}" '
+        f'stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" />'
+        f'</svg>'
+    )
 
-section[data-testid="stSidebar"] .stRadio > div {
-    gap: 6px !important;
-}
 
-/* Sidebar Radio Buttons */
-section[data-testid="stSidebar"] label {
-    font-family: 'Rajdhani', sans-serif !important;
-    font-size: 1rem !important;
+# Keep module-level LOGO_SVG for backward compatibility (app.py import)
+LOGO_SVG = ""  # Populated at runtime via get_logo_svg()
+
+
+# ---------------------------------------------------------------------------
+# CSS generation
+# ---------------------------------------------------------------------------
+def _build_css(t: Dict[str, str]) -> str:
+    """Build the full CSS stylesheet from a token dictionary."""
+    return f"""<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+/* === Base === */
+.stApp {{
+    background-color: {t['bg']} !important;
+    color: {t['text_primary']} !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
+}}
+h1,h2,h3,h4,h5,h6 {{
+    font-family: 'Inter', sans-serif !important;
+    color: {t['text_primary']} !important;
     font-weight: 600 !important;
-    letter-spacing: 0.04em !important;
-    color: #cbd5e1 !important;
-    transition: all 0.2s ease !important;
-}
+}}
+code, pre {{ font-family: 'JetBrains Mono', Consolas, monospace !important; }}
+a {{ color: {t['accent_secondary']} !important; }}
+hr {{ border-color: {t['border']} !important; }}
 
-section[data-testid="stSidebar"] label:hover {
-    color: var(--accent-cyan-neon) !important;
-    text-shadow: 0 0 10px rgba(0, 242, 254, 0.5) !important;
-}
+/* === Sidebar === */
+section[data-testid="stSidebar"] {{
+    background-color: {t['surface']} !important;
+    border-right: 1px solid {t['border']} !important;
+    box-shadow: none !important;
+}}
+section[data-testid="stSidebar"] .stRadio > div {{ gap: 2px !important; }}
+section[data-testid="stSidebar"] label {{
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: {t['text_secondary']} !important;
+    transition: color 0.15s ease !important;
+}}
+section[data-testid="stSidebar"] label:hover {{
+    color: {t['text_primary']} !important;
+    text-shadow: none !important;
+}}
 
-/* Cyber Header Banner */
-.gov-brand-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px 28px;
-    background: linear-gradient(135deg, rgba(13, 21, 39, 0.9) 0%, rgba(7, 13, 30, 0.95) 100%);
-    border: 1px solid rgba(0, 242, 254, 0.28);
-    border-radius: 14px;
-    margin-bottom: 24px;
-    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.8), 0 0 20px -5px rgba(0, 242, 254, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(12px);
-    position: relative;
-    overflow: hidden;
-}
+/* === Buttons === */
+.stButton > button {{
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    border: 1px solid {t['border']} !important;
+    background: {t['surface_elevated']} !important;
+    color: {t['text_primary']} !important;
+    transition: all 0.15s ease !important;
+    text-transform: none !important;
+    letter-spacing: normal !important;
+    box-shadow: none !important;
+}}
+.stButton > button:hover {{
+    border-color: {t['accent']} !important;
+    background: {t['accent_bg']} !important;
+    transform: none !important;
+    box-shadow: none !important;
+}}
+.stButton > button[kind="primary"] {{
+    background: {t['accent']} !important;
+    border-color: {t['accent']} !important;
+    color: #ffffff !important;
+}}
+.stButton > button[kind="primary"]:hover {{
+    background: {t['accent_hover']} !important;
+    border-color: {t['accent_hover']} !important;
+    box-shadow: none !important;
+}}
+.stDownloadButton > button {{
+    font-family: 'Inter', sans-serif !important;
+    font-size: 0.85rem !important;
+    font-weight: 600 !important;
+    border-radius: 6px !important;
+    border: 1px solid {t['border']} !important;
+    background: {t['surface_elevated']} !important;
+    color: {t['text_primary']} !important;
+    box-shadow: none !important;
+}}
+.stDownloadButton > button:hover {{
+    border-color: {t['accent']} !important;
+}}
 
-.gov-brand-header::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; height: 2px;
-    background: linear-gradient(90deg, transparent, #00f2fe, #00ff87, transparent);
-}
+/* === Inputs === */
+.stTextInput input, .stTextArea textarea {{
+    background-color: {t['surface']} !important;
+    border: 1px solid {t['border']} !important;
+    color: {t['text_primary']} !important;
+    border-radius: 6px !important;
+    font-family: 'Inter', sans-serif !important;
+}}
+.stTextInput input:focus, .stTextArea textarea:focus {{
+    border-color: {t['accent']} !important;
+    box-shadow: 0 0 0 1px {t['accent']} !important;
+}}
 
-.gov-brand-title {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 1.8rem;
-    font-weight: 900;
-    letter-spacing: 0.08em;
-    color: #f8fafc;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    text-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
-}
+/* === Tabs === */
+.stTabs [data-baseweb="tab-list"] {{
+    gap: 0 !important;
+    border-bottom: 1px solid {t['border']} !important;
+}}
+.stTabs [data-baseweb="tab"] {{
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 500 !important;
+    font-size: 0.85rem !important;
+    color: {t['text_secondary']} !important;
+    background: transparent !important;
+    padding: 8px 16px !important;
+}}
+.stTabs [aria-selected="true"] {{
+    color: {t['accent']} !important;
+}}
 
-.gov-brand-title span.emerald {
-    color: #00ff87;
-    text-shadow: 0 0 15px rgba(0, 255, 135, 0.5);
-}
+/* === Expanders === */
+[data-testid="stExpander"] {{
+    background-color: {t['surface']} !important;
+    border: 1px solid {t['border']} !important;
+    border-radius: 6px !important;
+    box-shadow: none !important;
+}}
+[data-testid="stExpander"] summary {{
+    font-family: 'Inter', sans-serif !important;
+    font-weight: 500 !important;
+    color: {t['text_primary']} !important;
+}}
 
-.gov-brand-tagline {
-    font-family: 'Rajdhani', sans-serif;
-    font-size: 0.95rem;
-    color: #94a3b8;
-    margin-top: 2px;
-    letter-spacing: 0.05em;
-    font-weight: 500;
-}
+/* === Dataframes === */
+[data-testid="stDataFrame"] {{
+    border: 1px solid {t['border']} !important;
+    border-radius: 6px !important;
+}}
 
-/* Advanced Futuristic Metric Cards */
-.gov-metric-card {
-    background: linear-gradient(145deg, rgba(13, 21, 39, 0.85) 0%, rgba(7, 13, 30, 0.95) 100%);
-    border: 1px solid rgba(56, 189, 248, 0.22);
-    border-radius: 12px;
-    padding: 18px 22px;
-    box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-    backdrop-filter: blur(10px);
-    position: relative;
-    overflow: hidden;
-    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
-}
+/* === Alerts === */
+[data-testid="stAlert"] {{
+    border-radius: 6px !important;
+    font-family: 'Inter', sans-serif !important;
+}}
 
-.gov-metric-card:hover {
-    border-color: rgba(0, 242, 254, 0.5);
-    box-shadow: 0 12px 32px -4px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 242, 254, 0.25);
-    transform: translateY(-3px);
-}
+/* === Custom component classes === */
 
-.gov-metric-card::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; width: 4px; height: 100%;
-    background: linear-gradient(180deg, #00f2fe, #00ff87);
-}
-
-.gov-metric-title {
-    font-family: 'Rajdhani', sans-serif;
-    font-size: 0.8rem;
-    text-transform: uppercase;
-    color: #94a3b8;
-    letter-spacing: 0.1em;
-    font-weight: 700;
-}
-
-.gov-metric-value {
-    font-family: 'Orbitron', sans-serif;
-    font-size: 2rem;
-    font-weight: 800;
-    color: #f8fafc;
-    margin: 6px 0;
-    text-shadow: 0 0 12px rgba(255, 255, 255, 0.2);
-}
-
-.gov-metric-delta {
-    font-family: 'Rajdhani', sans-serif;
-    font-size: 0.85rem;
-    color: #38bdf8;
-    font-weight: 600;
-    letter-spacing: 0.03em;
-}
-
-/* Tactical HUD Bar */
-.gov-hud-bar {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: rgba(10, 17, 34, 0.65);
-    border: 1px solid rgba(0, 242, 254, 0.2);
+/* Metric card */
+.gn-metric {{
+    background-color: {t['surface']};
+    border: 1px solid {t['border']};
     border-radius: 8px;
-    padding: 8px 16px;
+    padding: 16px 20px;
+    transition: border-color 0.15s ease;
+}}
+.gn-metric:hover {{ border-color: {t['accent']}; }}
+.gn-metric-label {{
+    font-size: 0.7rem; font-weight: 600; color: {t['text_muted']};
+    text-transform: uppercase; letter-spacing: 0.04em;
+    font-family: 'Inter', sans-serif;
+}}
+.gn-metric-value {{
+    font-size: 1.75rem; font-weight: 700; color: {t['text_primary']};
+    margin: 4px 0; line-height: 1.2; font-family: 'Inter', sans-serif;
+}}
+.gn-metric-sub {{
+    font-size: 0.8rem; color: {t['text_secondary']};
+    font-family: 'Inter', sans-serif;
+}}
+
+/* Page header */
+.gn-page-header {{
+    margin-bottom: 24px; padding-bottom: 16px;
+    border-bottom: 1px solid {t['border']};
+}}
+.gn-page-title {{
+    font-size: 1.25rem; font-weight: 700; color: {t['text_primary']};
+    margin: 0; line-height: 1.3; font-family: 'Inter', sans-serif;
+}}
+.gn-page-desc {{
+    font-size: 0.85rem; color: {t['text_secondary']};
+    margin-top: 4px; font-family: 'Inter', sans-serif;
+}}
+
+/* Info banner */
+.gn-banner {{
+    background-color: {t['surface']};
+    border: 1px solid {t['border']};
+    border-left: 3px solid {t['accent']};
+    border-radius: 6px;
+    padding: 12px 16px;
     margin-bottom: 20px;
+}}
+.gn-banner-title {{
+    font-weight: 600; font-size: 0.85rem; color: {t['accent']};
+    font-family: 'Inter', sans-serif;
+}}
+.gn-banner-text {{
+    font-size: 0.8rem; color: {t['text_secondary']};
+    margin-top: 4px; line-height: 1.5; font-family: 'Inter', sans-serif;
+}}
+
+/* Status badges */
+.gn-badge {{
+    display: inline-block; padding: 3px 10px; border-radius: 4px;
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 0.02em;
+    font-family: 'Inter', sans-serif;
+}}
+.gn-badge-pass {{
+    background: {t['success_bg']}; color: {t['success']};
+    border: 1px solid {t['success']};
+}}
+.gn-badge-fail {{
+    background: {t['error_bg']}; color: {t['error']};
+    border: 1px solid {t['error']};
+}}
+.gn-badge-warning {{
+    background: {t['warning_bg']}; color: {t['warning']};
+    border: 1px solid {t['warning']};
+}}
+.gn-badge-na {{
+    background: {t['sev_info_bg']}; color: {t['sev_info']};
+    border: 1px solid {t['sev_info']};
+}}
+
+/* Severity badges */
+.gn-sev {{ display: inline-block; padding: 2px 8px; border-radius: 4px;
+    font-size: 0.7rem; font-weight: 700; font-family: 'Inter', sans-serif; }}
+.gn-sev-critical {{ background: {t['sev_critical_bg']}; color: {t['sev_critical']}; border: 1px solid {t['sev_critical']}; }}
+.gn-sev-high     {{ background: {t['sev_high_bg']};     color: {t['sev_high']};     border: 1px solid {t['sev_high']}; }}
+.gn-sev-medium   {{ background: {t['sev_medium_bg']};   color: {t['sev_medium']};   border: 1px solid {t['sev_medium']}; }}
+.gn-sev-low      {{ background: {t['sev_low_bg']};      color: {t['sev_low']};      border: 1px solid {t['sev_low']}; }}
+.gn-sev-info     {{ background: {t['sev_info_bg']};     color: {t['sev_info']};     border: 1px solid {t['sev_info']}; }}
+
+/* Demo banner */
+.gn-demo-banner {{
+    background: {t['accent_bg']};
+    border: 1px solid {t['accent']};
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+}}
+
+/* Sidebar brand */
+.gn-sidebar-brand {{
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 0 14px 0;
+    border-bottom: 1px solid {t['border']};
+    margin-bottom: 12px;
+}}
+.gn-sidebar-wordmark {{
+    font-family: 'Inter', sans-serif; font-size: 1.1rem;
+    font-weight: 700; color: {t['text_primary']}; letter-spacing: 0.01em;
+}}
+.gn-sidebar-wordmark span {{ color: {t['accent']}; }}
+.gn-sidebar-subtitle {{
+    font-family: 'Inter', sans-serif; font-size: 0.68rem;
+    color: {t['text_muted']};
+}}
+
+/* Compliance box */
+.gn-compliance {{
+    background: {t['surface_elevated']};
+    border: 1px solid {t['border']};
+    border-radius: 6px;
+    padding: 10px 12px; margin-top: 8px;
+}}
+.gn-compliance-title {{
+    font-family: 'Inter', sans-serif; font-size: 0.68rem;
+    font-weight: 600; color: {t['accent']};
+    text-transform: uppercase; letter-spacing: 0.04em;
+}}
+.gn-compliance-list {{
+    font-family: 'Inter', sans-serif; font-size: 0.68rem;
+    color: {t['text_secondary']}; margin-top: 4px; line-height: 1.5;
+}}
+
+/* Finding row */
+.gn-finding-row {{
+    background: {t['surface']}; border: 1px solid {t['border']};
+    border-radius: 6px; padding: 12px 16px; margin-bottom: 8px;
+    display: flex; justify-content: space-between; align-items: center;
+}}
+.gn-finding-title {{
+    font-weight: 600; color: {t['text_primary']}; font-size: 0.9rem;
+    font-family: 'Inter', sans-serif;
+}}
+.gn-finding-meta {{
+    font-size: 0.75rem; color: {t['text_muted']};
     font-family: 'JetBrains Mono', monospace;
-    font-size: 0.75rem;
-    color: #94a3b8;
-}
+}}
 
-.gov-pulse-dot {
-    display: inline-block;
-    width: 8px;
-    height: 8px;
-    background-color: #00ff87;
-    border-radius: 50%;
-    margin-right: 8px;
-    box-shadow: 0 0 8px #00ff87;
-    animation: cyberPulse 2s infinite;
-}
+/* Tracking status */
+.gn-status-box {{
+    background: {t['surface_elevated']}; border: 1px solid {t['border']};
+    border-radius: 6px; padding: 10px 12px; margin-bottom: 10px;
+}}
 
-@keyframes cyberPulse {
-    0% { box-shadow: 0 0 0 0 rgba(0, 255, 135, 0.7); }
-    70% { box-shadow: 0 0 0 6px rgba(0, 255, 135, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(0, 255, 135, 0); }
-}
+/* Score box */
+.gn-score-box {{
+    background: {t['surface']}; border-radius: 8px;
+    padding: 20px; text-align: center;
+}}
 
-/* Futuristic Streamlit Buttons */
-.stButton > button {
-    font-family: 'Rajdhani', sans-serif !important;
-    font-size: 1rem !important;
-    font-weight: 700 !important;
-    letter-spacing: 0.06em !important;
-    text-transform: uppercase !important;
-    border-radius: 8px !important;
-    border: 1px solid rgba(0, 242, 254, 0.4) !important;
-    background: linear-gradient(135deg, rgba(6, 182, 212, 0.2) 0%, rgba(16, 185, 129, 0.2) 100%) !important;
-    color: #f8fafc !important;
-    transition: all 0.25s ease !important;
-    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
-}
-
-.stButton > button:hover {
-    border-color: #00f2fe !important;
-    background: linear-gradient(135deg, rgba(6, 182, 212, 0.4) 0%, rgba(16, 185, 129, 0.4) 100%) !important;
-    box-shadow: 0 0 20px rgba(0, 242, 254, 0.45) !important;
-    transform: translateY(-2px) !important;
-}
-
-.stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, #06b6d4 0%, #10b981 100%) !important;
-    border: 1px solid #00f2fe !important;
-    color: #030712 !important;
-    font-weight: 800 !important;
-    box-shadow: 0 0 20px rgba(0, 242, 254, 0.4) !important;
-}
-
-.stButton > button[kind="primary"]:hover {
-    box-shadow: 0 0 30px rgba(0, 255, 135, 0.6) !important;
-}
-
-/* Badges with Neon Glow */
-.badge-pass {
-    background: rgba(0, 255, 135, 0.12);
-    color: #00ff87;
-    border: 1px solid rgba(0, 255, 135, 0.5);
-    padding: 3px 12px;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    font-family: 'Rajdhani', sans-serif;
-    letter-spacing: 0.05em;
-    display: inline-block;
-    box-shadow: 0 0 10px rgba(0, 255, 135, 0.25);
-}
-
-.badge-fail {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ff4d6d;
-    border: 1px solid rgba(239, 68, 68, 0.6);
-    padding: 3px 12px;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    font-family: 'Rajdhani', sans-serif;
-    letter-spacing: 0.05em;
-    display: inline-block;
-    box-shadow: 0 0 10px rgba(239, 68, 68, 0.3);
-}
-
-.badge-warning {
-    background: rgba(245, 158, 11, 0.15);
-    color: #fbbf24;
-    border: 1px solid rgba(245, 158, 11, 0.5);
-    padding: 3px 12px;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    font-family: 'Rajdhani', sans-serif;
-    letter-spacing: 0.05em;
-    display: inline-block;
-    box-shadow: 0 0 10px rgba(245, 158, 11, 0.25);
-}
-
-.badge-na {
-    background: rgba(100, 116, 139, 0.15);
-    color: #94a3b8;
-    border: 1px solid rgba(100, 116, 139, 0.4);
-    padding: 3px 12px;
-    border-radius: 9999px;
-    font-size: 0.75rem;
-    font-weight: 700;
-    font-family: 'Rajdhani', sans-serif;
-    display: inline-block;
-}
-
-/* Severity Badges */
-.badge-sev-critical {
-    background: #ff0055;
-    color: #ffffff;
-    padding: 2px 9px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 800;
-    font-family: 'Orbitron', sans-serif;
-    box-shadow: 0 0 10px rgba(255, 0, 85, 0.5);
-}
-.badge-sev-high {
-    background: #f97316;
-    color: #ffffff;
-    padding: 2px 9px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 800;
-    font-family: 'Orbitron', sans-serif;
-    box-shadow: 0 0 8px rgba(249, 115, 22, 0.4);
-}
-.badge-sev-medium {
-    background: #eab308;
-    color: #030712;
-    padding: 2px 9px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 800;
-    font-family: 'Orbitron', sans-serif;
-}
-.badge-sev-low {
-    background: #0284c7;
-    color: #ffffff;
-    padding: 2px 9px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 800;
-    font-family: 'Orbitron', sans-serif;
-}
-.badge-sev-info {
-    background: #475569;
-    color: #ffffff;
-    padding: 2px 9px;
-    border-radius: 4px;
-    font-size: 0.75rem;
-    font-weight: 800;
-    font-family: 'Orbitron', sans-serif;
-}
-
-/* Demo Banner */
-.demo-banner {
-    background: linear-gradient(90deg, rgba(0, 242, 254, 0.15), rgba(0, 255, 135, 0.15));
-    border: 1px solid rgba(0, 242, 254, 0.45);
-    border-radius: 10px;
-    padding: 14px 20px;
-    margin-bottom: 22px;
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    box-shadow: 0 0 20px rgba(0, 242, 254, 0.15);
-}
-</style>
-"""
+/* Verification delta */
+.gn-delta-card {{
+    background: {t['surface']}; border: 1px solid {t['border']};
+    border-radius: 8px; padding: 16px; text-align: center;
+}}
+</style>"""
 
 
-def render_safe_html(html_str: str):
-    """Safely render HTML without Markdown code-block interpretation.
-    
-    Uses native st.html if supported, and strips leading whitespace so markdown parsers
-    never interpret indented markup as <pre><code> blocks.
-    """
-    clean_html = textwrap.dedent(html_str).strip()
+# ---------------------------------------------------------------------------
+# Safe HTML renderer
+# ---------------------------------------------------------------------------
+def render_safe_html(html_str: str) -> None:
+    """Render HTML content safely, avoiding Markdown pre-block interpretation."""
+    clean = textwrap.dedent(html_str).strip()
     if hasattr(st, "html"):
-        st.html(clean_html)
+        st.html(clean)
     else:
-        no_indent = "\n".join(line.lstrip() for line in clean_html.splitlines())
+        no_indent = "\n".join(line.lstrip() for line in clean.splitlines())
         st.markdown(no_indent, unsafe_allow_html=True)
 
 
-def apply_theme():
-    """Inject the advanced futuristic cyber theme into the Streamlit session."""
-    render_safe_html(CUSTOM_CSS)
+# ---------------------------------------------------------------------------
+# Apply theme — call once at app startup
+# ---------------------------------------------------------------------------
+def apply_theme() -> None:
+    """Inject the active theme's CSS into the current Streamlit page."""
+    tokens = get_tokens()
+    render_safe_html(_build_css(tokens))
 
 
-def render_brand_header(subtitle: Optional[str] = None):
-    """Render the official GOVNEXIS futuristic header bar."""
+# ---------------------------------------------------------------------------
+# Reusable UI component helpers
+# ---------------------------------------------------------------------------
+
+def render_page_header(title: str, description: str = "") -> None:
+    """Render a consistent page header with title and optional description."""
+    desc_html = f'<div class="gn-page-desc">{description}</div>' if description else ""
+    render_safe_html(f"""
+    <div class="gn-page-header">
+        <div class="gn-page-title">{title}</div>
+        {desc_html}
+    </div>
+    """)
+
+
+def render_brand_header(subtitle: Optional[str] = None) -> None:
+    """Render a page header with the GOVNEXIS title. Replaces the old flashy header."""
     sub_text = subtitle or APP_TAGLINE
-    header_html = (
-        f'<div class="gov-brand-header">'
-        f'<div style="display: flex; align-items: center; gap: 16px;">'
-        f'{LOGO_SVG}'
-        f'<div>'
-        f'<div class="gov-brand-title">'
-        f'GOV<span class="emerald">NEXIS</span>'
-        f'<span style="font-size: 0.7rem; font-weight: 700; color: #00f2fe; background: rgba(0, 242, 254, 0.12); border: 1px solid rgba(0, 242, 254, 0.4); padding: 2px 10px; border-radius: 9999px; text-shadow: none;">v{APP_VERSION} PRO</span>'
-        f'</div>'
-        f'<div class="gov-brand-tagline">{sub_text}</div>'
-        f'</div>'
-        f'</div>'
-        f'<div style="text-align: right;">'
-        f'<div style="display: flex; align-items: center; justify-content: flex-end;">'
-        f'<span class="gov-pulse-dot"></span>'
-        f'<span style="font-family: \'Orbitron\', sans-serif; font-size: 0.8rem; font-weight: 700; color: #00ff87; letter-spacing: 0.05em;">DEFENSE POSTURE ACTIVE</span>'
-        f'</div>'
-        f'<div style="font-family: \'Rajdhani\', sans-serif; font-size: 0.75rem; color: #64748b; margin-top: 2px;">CISA BOD 18-01 // NIST SP 800-52</div>'
-        f'</div>'
-        f'</div>'
-    )
-    render_safe_html(header_html)
+    render_page_header(f"GOVNEXIS — {sub_text}")
 
 
-def render_sidebar_brand():
-    """Render the sidebar branding header with logo, wordmark, and subtitle."""
-    brand_html = (
-        f'<div style="display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(0, 242, 254, 0.2); margin-bottom: 16px;">'
-        f'{LOGO_SVG}'
-        f'<div>'
-        f'<div style="font-family: \'Orbitron\', sans-serif; font-size: 1.3rem; font-weight: 800; color: #f8fafc; letter-spacing: 0.05em;">'
-        f'GOV<span style="color: #00ff87;">NEXIS</span>'
-        f'</div>'
-        f'<div style="font-family: \'Rajdhani\', sans-serif; font-size: 0.75rem; color: #94a3b8; letter-spacing: 0.03em;">Security Audit Platform</div>'
-        f'</div>'
-        f'</div>'
-    )
-    render_safe_html(brand_html)
+def render_sidebar_brand() -> None:
+    """Render a compact sidebar branding area with logo and wordmark."""
+    logo = get_logo_svg(28)
+    render_safe_html(f"""
+    <div class="gn-sidebar-brand">
+        {logo}
+        <div>
+            <div class="gn-sidebar-wordmark">GOV<span>NEXIS</span></div>
+            <div class="gn-sidebar-subtitle">Security Audit Platform</div>
+        </div>
+    </div>
+    """)
 
 
-def render_sidebar_compliance():
-    """Render the sidebar active compliance badge container."""
-    compliance_html = (
-        '<div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(0, 242, 254, 0.25); border-radius: 8px; padding: 12px; margin-top: 10px;">'
-        '<div style="font-family: \'Orbitron\', sans-serif; font-size: 0.75rem; font-weight: 700; color: #38bdf8; letter-spacing: 0.05em;">ACTIVE COMPLIANCE</div>'
-        '<div style="font-family: \'Rajdhani\', sans-serif; font-size: 0.75rem; color: #94a3b8; margin-top: 4px; line-height: 1.4;">'
-        'CISA BOD 18-01<br>'
-        'NIST SP 800-52r2<br>'
-        'OWASP Secure Headers'
-        '</div>'
-        '</div>'
-    )
-    render_safe_html(compliance_html)
+def render_sidebar_compliance() -> None:
+    """Render the sidebar compliance reference block."""
+    render_safe_html("""
+    <div class="gn-compliance">
+        <div class="gn-compliance-title">Reference Standards</div>
+        <div class="gn-compliance-list">
+            CISA BOD 18-01<br>
+            NIST SP 800-52r2<br>
+            OWASP Secure Headers
+        </div>
+    </div>
+    """)
 
 
-def render_hud_telemetry():
-    """Render tactical live system telemetry HUD bar."""
-    hud_html = (
-        '<div class="gov-hud-bar">'
-        '<div><span class="gov-pulse-dot"></span>SYSTEM STATUS: <strong>OPERATIONAL</strong></div>'
-        '<div>DEFENSIVE RULES: <strong>10 ACTIVE</strong></div>'
-        '<div>SSRF GUARD: <strong>ENFORCED (RFC1918 FILTER)</strong></div>'
-        '<div>ENCRYPTION MONITOR: <strong>TLS 1.3 / HSTS COMPLIANT</strong></div>'
-        '</div>'
-    )
-    render_safe_html(hud_html)
+def render_demo_banner() -> None:
+    """Render an informational notice that local demo sandbox is active."""
+    t = get_tokens()
+    render_safe_html(f"""
+    <div class="gn-demo-banner">
+        <div style="font-weight:600; font-size:0.85rem; color:{t['accent']}; font-family:'Inter',sans-serif;">
+            Isolated Local Sandbox Environment
+        </div>
+        <div style="font-size:0.8rem; color:{t['text_secondary']}; margin-top:4px; font-family:'Inter',sans-serif;">
+            Target is restricted to <code>127.0.0.1:8765</code>. No external network traffic is generated.
+        </div>
+    </div>
+    """)
 
 
-def render_demo_banner():
-    """Render an explicit notice that local demo testing is active and isolated."""
-    demo_html = (
-        '<div class="demo-banner">'
-        '<span style="font-size: 1.6rem;">🛡️</span>'
-        '<div>'
-        '<div style="font-family: \'Orbitron\', sans-serif; font-weight: 700; color: #00f2fe; font-size: 0.95rem; letter-spacing: 0.04em;">ISOLATED LOCAL SANDBOX ENVIRONMENT</div>'
-        '<div style="font-size: 0.8rem; color: #94a3b8; margin-top: 2px;">'
-        'Target is strictly allowlisted to <code>127.0.0.1:8765</code>. Zero external network packets dispatched.'
-        '</div>'
-        '</div>'
-        '</div>'
-    )
-    render_safe_html(demo_html)
+def render_info_banner(title: str, text: str, border_color: Optional[str] = None) -> None:
+    """Render a contextual information banner."""
+    t = get_tokens()
+    color = border_color or t["accent"]
+    render_safe_html(f"""
+    <div class="gn-banner" style="border-left-color:{color};">
+        <div class="gn-banner-title" style="color:{color};">{title}</div>
+        <div class="gn-banner-text">{text}</div>
+    </div>
+    """)
 
+
+def render_metric_card_html(
+    label: str,
+    value: str,
+    subtitle: str = "",
+    value_color: Optional[str] = None,
+    delta_color: Optional[str] = None,
+) -> str:
+    """Return the HTML string for a metric card (caller wraps in column)."""
+    color = value_color or delta_color
+    val_style = f' style="color:{color};"' if color else ""
+    sub = f'<div class="gn-metric-sub">{subtitle}</div>' if subtitle else ""
+    return f"""
+    <div class="gn-metric">
+        <div class="gn-metric-label">{label}</div>
+        <div class="gn-metric-value"{val_style}>{value}</div>
+        {sub}
+    </div>
+    """
+
+
+# ---------------------------------------------------------------------------
+# Badge helpers
+# ---------------------------------------------------------------------------
 
 def get_status_badge_html(status: str) -> str:
-    """Return inline HTML pill badge for PASS, FAIL, WARNING, NOT ASSESSED."""
-    if status == "PASS":
-        return '<span class="badge-pass">✓ PASS</span>'
-    elif status == "FAIL":
-        return '<span class="badge-fail">✕ FAIL</span>'
-    elif status == "WARNING":
-        return '<span class="badge-warning">⚠ WARNING</span>'
+    """Return an HTML badge for PASS / FAIL / WARNING / NOT ASSESSED."""
+    status_upper = status.upper().strip()
+    if status_upper == "PASS":
+        return '<span class="gn-badge gn-badge-pass">PASS</span>'
+    elif status_upper == "FAIL":
+        return '<span class="gn-badge gn-badge-fail">FAIL</span>'
+    elif status_upper == "WARNING":
+        return '<span class="gn-badge gn-badge-warning">WARNING</span>'
     else:
-        return '<span class="badge-na">○ NOT ASSESSED</span>'
+        return '<span class="gn-badge gn-badge-na">NOT ASSESSED</span>'
 
 
 def get_severity_badge_html(severity: str) -> str:
-    """Return inline HTML pill badge for finding severity."""
-    s = severity.lower()
+    """Return an HTML badge for the given finding severity level."""
+    s = severity.lower().strip()
     if s == "critical":
-        return '<span class="badge-sev-critical">CRITICAL</span>'
+        return '<span class="gn-sev gn-sev-critical">CRITICAL</span>'
     elif s == "high":
-        return '<span class="badge-sev-high">HIGH</span>'
+        return '<span class="gn-sev gn-sev-high">HIGH</span>'
     elif s == "medium":
-        return '<span class="badge-sev-medium">MEDIUM</span>'
+        return '<span class="gn-sev gn-sev-medium">MEDIUM</span>'
     elif s == "low":
-        return '<span class="badge-sev-low">LOW</span>'
+        return '<span class="gn-sev gn-sev-low">LOW</span>'
     else:
-        return '<span class="badge-sev-info">INFO</span>'
+        return '<span class="gn-sev gn-sev-info">INFO</span>'
+
+
+def get_score_color(score: int) -> str:
+    """Return the appropriate accent colour for a numeric security score."""
+    t = get_tokens()
+    if score >= 80:
+        return t["success"]
+    elif score >= 60:
+        return t["warning"]
+    else:
+        return t["error"]
+
+
+def get_verification_color(status: str) -> str:
+    """Return a colour for finding verification lifecycle status."""
+    t = get_tokens()
+    status_lower = status.lower().strip()
+    if status_lower == "verified":
+        return t["success"]
+    elif status_lower == "fixed":
+        return t["accent_secondary"]
+    elif status_lower == "in progress":
+        return t["warning"]
+    else:
+        return t["error"]
+
+
+# ---------------------------------------------------------------------------
+# Plotly chart theme helper
+# ---------------------------------------------------------------------------
+
+def get_plotly_layout_defaults() -> dict:
+    """Return common Plotly layout kwargs matching the active theme."""
+    t = get_tokens()
+    return {
+        "paper_bgcolor": "rgba(0,0,0,0)",
+        "plot_bgcolor": "rgba(0,0,0,0)",
+        "font": {"color": t["chart_text"], "family": "Inter, sans-serif"},
+    }
+
+
+def get_severity_color_map() -> dict:
+    """Return a Plotly-compatible severity→colour mapping for the active theme."""
+    t = get_tokens()
+    return {
+        "Critical":      t["sev_critical"],
+        "High":          t["sev_high"],
+        "Medium":        t["sev_medium"],
+        "Low":           t["sev_low"],
+        "Informational": t["sev_info"],
+    }

@@ -1,6 +1,6 @@
 """Local Demo Lab for GOVNEXIS.
 
-Provides an interactive sandbox environment for live Hackathon demonstrations:
+Provides an interactive sandbox environment for live demonstrations:
 - Controls local test HTTP server on 127.0.0.1:8765
 - Demonstrates Baseline (vulnerable/misconfigured) vs Hardened states
 - One-click scan, remediation fix application, rescan, and comparative verification
@@ -9,18 +9,29 @@ Provides an interactive sandbox environment for live Hackathon demonstrations:
 
 import streamlit as st
 import time
+from typing import Dict, Any
 
 from core.config import LOCAL_DEMO_URL, LOCAL_DEMO_HOST, LOCAL_DEMO_PORT
 from core.mock_site import start_mock_server, stop_mock_server, get_demo_status, DEMO_STATE, MockServerState
 from core.scanner import execute_scan
 from core.database import save_scan
-from ui.theme import render_brand_header, render_demo_banner, get_status_badge_html, render_safe_html
+from ui.theme import (
+    render_page_header,
+    render_demo_banner,
+    render_metric_card_html,
+    render_safe_html,
+    get_tokens,
+)
 
 
-def render_demo_lab_page():
+def render_demo_lab_page() -> None:
     """Render the Local Demo Lab sandbox page."""
-    render_brand_header("Local Demo Lab — Interactive Hackathon Sandbox")
+    render_page_header(
+        "Demo Lab",
+        "Isolated local sandbox demonstrating baseline vs. hardened security postures",
+    )
     render_demo_banner()
+    tokens = get_tokens()
 
     # Ensure demo server is started
     server_started = start_mock_server()
@@ -30,50 +41,43 @@ def render_demo_lab_page():
     col_st1, col_st2, col_st3 = st.columns(3)
 
     with col_st1:
-        render_safe_html(f"""
-        <div class="gov-metric-card">
-            <div class="gov-metric-title">SANDBOX SERVER STATUS</div>
-            <div class="gov-metric-value" style="color: {'#10b981' if status['running'] else '#ef4444'}; font-size: 1.4rem;">
-                {'● ONLINE' if status['running'] else '○ OFFLINE'}
-            </div>
-            <div class="gov-metric-delta">Bound to {status['host']}:{status['port']}</div>
-        </div>
-        """)
+        server_val = "ONLINE" if status["running"] else "OFFLINE"
+        server_color = tokens["accent"] if status["running"] else tokens["error"]
+        render_safe_html(render_metric_card_html(
+            "Sandbox Server Status",
+            server_val,
+            f"Bound to {status['host']}:{status['port']}",
+            delta_color=server_color
+        ))
 
     with col_st2:
-        mode_text = status['mode'].upper()
-        mode_color = "#34d399" if status['mode'] == MockServerState.MODE_HARDENED else "#f87171"
-        render_safe_html(f"""
-        <div class="gov-metric-card">
-            <div class="gov-metric-title">CURRENT SIMULATION STATE</div>
-            <div class="gov-metric-value" style="color: {mode_color}; font-size: 1.4rem;">
-                {mode_text}
-            </div>
-            <div class="gov-metric-delta">
-                {'Hardened Defense Posture' if status['mode'] == MockServerState.MODE_HARDENED else 'Vulnerable Baseline Posture'}
-            </div>
-        </div>
-        """)
+        is_hardened = status["mode"] == MockServerState.MODE_HARDENED
+        mode_val = "HARDENED" if is_hardened else "BASELINE"
+        mode_color = tokens["accent"] if is_hardened else tokens["warning"]
+        subtext = "Hardened Defense Posture" if is_hardened else "Vulnerable Baseline Posture"
+        render_safe_html(render_metric_card_html(
+            "Simulation State",
+            mode_val,
+            subtext,
+            delta_color=mode_color
+        ))
 
     with col_st3:
-        render_safe_html(f"""
-        <div class="gov-metric-card">
-            <div class="gov-metric-title">TARGET URL</div>
-            <div class="gov-metric-value" style="font-size: 1.2rem; color: #38bdf8;">
-                {status['url']}
-            </div>
-            <div class="gov-metric-delta">Safe localhost allowlist</div>
-        </div>
-        """)
+        render_safe_html(render_metric_card_html(
+            "Target Endpoint",
+            status["url"],
+            "Safe localhost allowlist",
+            delta_color=tokens["accent_teal"]
+        ))
 
-    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+    st.write("")
 
     # Interactive Action Buttons
-    st.markdown("### 🎮 Hackathon Demo Controls")
+    st.subheader("Sandbox Controls")
     b_col1, b_col2, b_col3, b_col4 = st.columns(4)
 
     with b_col1:
-        if st.button("1️⃣ Run Baseline Demo Scan", use_container_width=True, type="primary"):
+        if st.button("Run Baseline Scan", use_container_width=True, type="primary"):
             DEMO_STATE.set_mode(MockServerState.MODE_BASELINE)
             with st.spinner("Running Baseline security audit on local sandbox..."):
                 time.sleep(0.3)
@@ -85,17 +89,17 @@ def render_demo_lab_page():
                 scan_id = save_scan(res)
                 st.session_state["demo_baseline_scan"] = res
                 st.session_state["latest_scan_result"] = res
-                st.success(f"Baseline scan completed! Score: {res.score_report.final_score}/100")
+                st.success(f"Baseline scan completed. Score: {res.score_report.final_score}/100")
                 st.rerun()
 
     with b_col2:
-        if st.button("2️⃣ Apply Demo Fixes (Harden)", use_container_width=True):
+        if st.button("Apply Hardened Config", use_container_width=True):
             DEMO_STATE.set_mode(MockServerState.MODE_HARDENED)
-            st.success("Config applied: Hardened headers (HSTS, CSP, XFO, XCTO, secure cookies) enabled on local demo server!")
+            st.success("Hardened headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, secure cookies) enabled on sandbox.")
             st.rerun()
 
     with b_col3:
-        if st.button("3️⃣ Rescan Hardened Demo", use_container_width=True, type="primary"):
+        if st.button("Rescan Hardened Target", use_container_width=True, type="primary"):
             DEMO_STATE.set_mode(MockServerState.MODE_HARDENED)
             with st.spinner("Executing post-hardening verification audit..."):
                 time.sleep(0.3)
@@ -107,23 +111,23 @@ def render_demo_lab_page():
                 scan_id = save_scan(res)
                 st.session_state["demo_hardened_scan"] = res
                 st.session_state["latest_scan_result"] = res
-                st.success(f"Verification scan completed! Score: {res.score_report.final_score}/100")
+                st.success(f"Verification scan completed. Score: {res.score_report.final_score}/100")
                 st.rerun()
 
     with b_col4:
-        if st.button("🔄 Reset Demo to Baseline", use_container_width=True):
+        if st.button("Reset to Baseline", use_container_width=True):
             DEMO_STATE.set_mode(MockServerState.MODE_BASELINE)
             st.info("Demo server reset to Baseline (Misconfigured) state.")
             st.rerun()
 
-    st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
+    st.write("")
 
     # Live Before & After Verification in the Lab
     has_baseline = "demo_baseline_scan" in st.session_state
     has_hardened = "demo_hardened_scan" in st.session_state
 
     if has_baseline or has_hardened:
-        st.markdown("### 📊 Demo Scan Results")
+        st.subheader("Scan Results")
 
         res_col1, res_col2 = st.columns(2)
 
@@ -133,17 +137,17 @@ def render_demo_lab_page():
                 b_res = st.session_state["demo_baseline_scan"]
                 b_score = b_res.score_report.final_score
                 render_safe_html(f"""
-                <div style="background: #0f172a; border: 2px solid #ef4444; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-                    <div style="font-size: 0.8rem; color: #94a3b8;">BASELINE SCORE</div>
-                    <div style="font-size: 2.4rem; font-weight: 900; color: #ef4444;">{b_score}/100 (Grade {b_res.score_report.letter_grade})</div>
-                    <div style="font-size: 0.8rem; color: #f87171;">Critical gaps: Missing HSTS, CSP, XFO, weak session cookie</div>
+                <div style="background: {tokens['surface']}; border: 1px solid {tokens['error']}; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                    <div style="font-size: 0.72rem; color: {tokens['text_muted']}; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;">Baseline Score</div>
+                    <div style="font-size: 2.2rem; font-weight: 800; color: {tokens['error']}; margin: 4px 0;">{b_score}/100 <span style="font-size: 1rem; color: {tokens['text_muted']}; font-weight: 400;">(Grade {b_res.score_report.letter_grade})</span></div>
+                    <div style="font-size: 0.8rem; color: {tokens['error']};">Configuration gaps: Missing HSTS, CSP, X-Frame-Options, weak session cookie</div>
                 </div>
                 """)
                 for f in b_res.findings:
                     if f.status in ("FAIL", "WARNING"):
-                        st.caption(f"✕ {f.title}: {f.evidence[:60]}")
+                        st.caption(f"FAIL: {f.title} — {f.evidence[:60]}")
             else:
-                st.info("Click '1️⃣ Run Baseline Demo Scan' above to record the baseline state.")
+                st.info("Click 'Run Baseline Scan' above to record the baseline state.")
 
         with res_col2:
             st.markdown("#### Hardened Result (After)")
@@ -151,18 +155,18 @@ def render_demo_lab_page():
                 h_res = st.session_state["demo_hardened_scan"]
                 h_score = h_res.score_report.final_score
                 render_safe_html(f"""
-                <div style="background: #0f172a; border: 2px solid #10b981; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-                    <div style="font-size: 0.8rem; color: #94a3b8;">VERIFIED SCORE</div>
-                    <div style="font-size: 2.4rem; font-weight: 900; color: #10b981;">{h_score}/100 (Grade {h_res.score_report.letter_grade})</div>
-                    <div style="font-size: 0.8rem; color: #34d399;">Defense-in-depth verified: All headers & secure cookies active</div>
+                <div style="background: {tokens['surface']}; border: 1px solid {tokens['accent']}; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
+                    <div style="font-size: 0.72rem; color: {tokens['text_muted']}; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em;">Verified Score</div>
+                    <div style="font-size: 2.2rem; font-weight: 800; color: {tokens['accent']}; margin: 4px 0;">{h_score}/100 <span style="font-size: 1rem; color: {tokens['text_muted']}; font-weight: 400;">(Grade {h_res.score_report.letter_grade})</span></div>
+                    <div style="font-size: 0.8rem; color: {tokens['accent']};">Defense-in-depth verified: All headers and secure cookies active</div>
                 </div>
                 """)
                 for f in h_res.findings:
                     if f.status == "PASS":
-                        st.caption(f"✓ {f.title}")
+                        st.caption(f"PASS: {f.title}")
             else:
-                st.info("Click '2️⃣ Apply Demo Fixes' then '3️⃣ Rescan Hardened Demo' to observe verification.")
+                st.info("Click 'Apply Hardened Config' then 'Rescan Hardened Target' to observe verification.")
 
         if has_baseline and has_hardened:
             delta = st.session_state["demo_hardened_scan"].score_report.final_score - st.session_state["demo_baseline_scan"].score_report.final_score
-            st.success(f"🎉 **Live Verification Demonstrated**: Security posture improved by **+{delta} points** in the local sandbox!")
+            st.success(f"Live Verification Demonstrated: Security posture improved by +{delta} points in the local sandbox.")

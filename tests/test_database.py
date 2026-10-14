@@ -1,5 +1,6 @@
 """Unit Tests for SQLite Persistence and Aggregations."""
 
+import gc
 import os
 import tempfile
 import pytest
@@ -21,8 +22,12 @@ def temp_db():
     os.close(fd)
     init_db(path)
     yield path
+    gc.collect()
     if os.path.exists(path):
-        os.remove(path)
+        try:
+            os.remove(path)
+        except PermissionError:
+            pass
 
 
 def test_save_and_retrieve_scan(temp_db):

@@ -1,11 +1,9 @@
-"""Smart Website Scanner Page for GOVNEXIS.
+"""Security Scanner Page for GOVNEXIS.
 
-Enforces:
-- Target ownership & authorization verification
-- SSRF-safe scanning with loopback & private destination blocks
-- Multi-phase audit progress visualization
-- Immediate transparent scoring and finding breakdown
-- Instant multi-format report exports (PDF, HTML, JSON, CSV)
+Handles:
+- Target URL entry and authorization confirmation
+- Multi-phase scan progress display
+- Scan result rendering (score, findings, export buttons)
 """
 
 import time
@@ -16,41 +14,47 @@ from core.config import LOCAL_DEMO_URL, LOCAL_DEMO_HOST, LOCAL_DEMO_PORT
 from core.scanner import execute_scan, ScanResult, ScanError
 from core.url_validator import ValidationError, SSRFSecurityError
 from core.database import save_scan
-from core.reports import generate_json_report, generate_html_report, generate_csv_report, generate_pdf_report
-from ui.theme import render_brand_header, get_status_badge_html, get_severity_badge_html, render_safe_html
+from core.reports import (
+    generate_json_report, generate_html_report,
+    generate_csv_report, generate_pdf_report,
+)
+from ui.theme import (
+    render_page_header, render_info_banner, render_safe_html,
+    get_status_badge_html, get_severity_badge_html,
+    get_score_color, get_tokens,
+)
 
 
 def render_scanner_page():
-    """Render the Smart Website Scanner UI."""
-    render_brand_header("Defensive Security Configuration Auditing Engine")
+    """Render the security scanner interface."""
+    render_page_header(
+        "New Security Scan",
+        "Defensive configuration audit of HTTP headers, cookies, and TLS parameters.",
+    )
 
-    # Scope and Legal Pre-flight Notice
-    render_safe_html("""
-    <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; border-left: 4px solid #06b6d4; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px;">
-        <div style="font-weight: 700; color: #38bdf8; font-size: 0.9rem;">DEFENSIVE CONFIGURATION AUDIT ONLY</div>
-        <div style="font-size: 0.8rem; color: #94a3b8; line-height: 1.5; margin-top: 4px;">
-            GOVNEXIS inspects public HTTP response headers, cookie flags, and TLS connection parameters.
-            It performs no port scanning, brute force attacks, or destructive testing. 
-            Scanning requires verified authorization from the website owner or administering agency.
-        </div>
-    </div>
-    """)
+    # Scope notice
+    render_info_banner(
+        "Defensive Configuration Audit Only",
+        "GOVNEXIS inspects public HTTP response headers, cookie flags, and TLS "
+        "connection parameters. It performs no port scanning, brute force attacks, "
+        "or destructive testing. Scanning requires verified authorization.",
+    )
 
-    # Fast Preset Buttons
+    # Quick-fill buttons
     col_pre1, col_pre2, _ = st.columns([1.5, 1.5, 2])
     with col_pre1:
-        if st.button("🧪 Auto-fill Local Demo Target", use_container_width=True):
+        if st.button("Fill Local Demo Target", use_container_width=True):
             st.session_state["scan_input_url"] = LOCAL_DEMO_URL
             st.session_state["scan_auth_checked"] = True
     with col_pre2:
-        if st.button("🏛️ Auto-fill Public Example", use_container_width=True):
+        if st.button("Fill Public Example", use_container_width=True):
             st.session_state["scan_input_url"] = "https://example.gov"
             st.session_state["scan_auth_checked"] = True
 
     default_url = st.session_state.get("scan_input_url", "")
     default_auth = st.session_state.get("scan_auth_checked", False)
 
-    # Scan Form
+    # Scan form
     with st.form("scan_execution_form"):
         col_url, col_scheme = st.columns([3, 1])
 
@@ -59,215 +63,218 @@ def render_scanner_page():
                 "Website Target URL",
                 value=default_url,
                 placeholder="https://agency.example.gov or 127.0.0.1:8765",
-                help="Enter full URL or domain. HTTP or HTTPS schemes only."
+                help="Enter full URL or domain. HTTP or HTTPS schemes only.",
             )
 
         with col_scheme:
-            # Scheme indicator
             is_https = target_url.lower().startswith("https://")
-            scheme_badge = "🔒 HTTPS (Encrypted)" if is_https else "⚠️ HTTP (Plaintext)" if target_url else "— Awaiting URL"
-            st.text_input("Protocol Scheme", value=scheme_badge, disabled=True)
+            if target_url:
+                scheme_badge = "HTTPS (Encrypted)" if is_https else "HTTP (Plaintext)"
+            else:
+                scheme_badge = "Awaiting URL"
+            st.text_input("Protocol", value=scheme_badge, disabled=True)
 
-        st.markdown("<div style='height: 6px;'></div>", unsafe_allow_html=True)
-
-        # Mandatory Authorization Checkbox
         auth_confirmed = st.checkbox(
-            "I certify that I am the authorized website owner, administrator, or have explicit written permission to audit this endpoint.",
+            "I certify that I am the authorized website owner, administrator, "
+            "or have explicit written permission to audit this endpoint.",
             value=default_auth,
-            help="Mandatory authorization confirmation required before any network traffic is dispatched."
+            help="Mandatory authorization confirmation.",
         )
 
-        submit_scan = st.form_submit_button("🔍 Start Security Audit", type="primary", use_container_width=True)
+        submit_scan = st.form_submit_button(
+            "Start Security Audit", type="primary", use_container_width=True,
+        )
 
-    # Execution Handler
+    # ---- Execution handler ----
     if submit_scan:
         if not target_url.strip():
             st.error("Please enter a valid website URL to audit.")
             return
 
         if not auth_confirmed:
-            st.error("❌ Scan halted: You must certify authorization before proceeding.")
+            st.error("Scan halted: You must certify authorization before proceeding.")
             return
 
-        # Determine if this is local demo
+        # Determine if this is a local demo target
         allow_demo = False
-        parsed_target = urlparse(target_url if target_url.startswith(("http://", "https://")) else "https://" + target_url)
-        if parsed_target.hostname in ("127.0.0.1", "localhost") and parsed_target.port == LOCAL_DEMO_PORT:
+        parsed = urlparse(
+            target_url if target_url.startswith(("http://", "https://"))
+            else "https://" + target_url
+        )
+        if parsed.hostname in ("127.0.0.1", "localhost") and parsed.port == LOCAL_DEMO_PORT:
             allow_demo = True
 
-        progress_placeholder = st.empty()
-        status_text = st.empty()
+        progress_ph = st.empty()
+        status_ph = st.empty()
 
         try:
-            # Step-by-step progress simulation with real execution
-            progress_bar = progress_placeholder.progress(10)
-            status_text.caption("Phase 1/5: Validating URL syntax, scheme, and SSRF restrictions...")
+            bar = progress_ph.progress(10)
+            status_ph.caption("Phase 1/5: Validating URL syntax and SSRF restrictions...")
             time.sleep(0.15)
 
-            progress_bar.progress(35)
-            status_text.caption("Phase 2/5: Resolving DNS hostnames and verifying destination network ranges...")
+            bar.progress(35)
+            status_ph.caption("Phase 2/5: Resolving DNS and verifying destination ranges...")
             time.sleep(0.15)
 
-            progress_bar.progress(60)
-            status_text.caption("Phase 3/5: Dispatching defensive HTTP requests & inspecting TLS parameters...")
+            bar.progress(60)
+            status_ph.caption("Phase 3/5: Dispatching HTTP request and inspecting TLS...")
 
-            # Run actual scan
             scan_result = execute_scan(
                 target_url=target_url,
                 user_confirmed_authorization=True,
-                allow_local_demo=allow_demo
+                allow_local_demo=allow_demo,
             )
 
-            progress_bar.progress(85)
-            status_text.caption("Phase 4/5: Running 10 security configuration audit rules...")
+            bar.progress(85)
+            status_ph.caption("Phase 4/5: Evaluating security configuration rules...")
             time.sleep(0.15)
 
-            progress_bar.progress(100)
-            status_text.caption("Phase 5/5: Calculating transparent score & persisting audit record...")
+            bar.progress(100)
+            status_ph.caption("Phase 5/5: Calculating score and saving record...")
 
-            # Persist to database
             scan_id = save_scan(scan_result)
             st.session_state["latest_scan_result"] = scan_result
             st.session_state["latest_scan_id"] = scan_id
 
-            progress_placeholder.empty()
-            status_text.empty()
-            st.success(f"Audit completed successfully! Scan record #{scan_id} saved.")
+            progress_ph.empty()
+            status_ph.empty()
+            st.success(f"Audit completed. Scan record #{scan_id} saved.")
 
-        except SSRFSecurityError as e:
-            progress_placeholder.empty()
-            status_text.empty()
-            st.error(f"🛡️ **Security Policy Enforcement**: {str(e)}")
-            st.info("Tip: GOVNEXIS blocks internal IPs (10.x, 192.168.x, 127.x) to protect against Server-Side Request Forgery. Use the Local Demo Lab for sandbox testing.")
+        except SSRFSecurityError as exc:
+            progress_ph.empty()
+            status_ph.empty()
+            st.error(f"**Security Policy**: {exc}")
+            st.info(
+                "GOVNEXIS blocks internal IPs (10.x, 192.168.x, 127.x) to protect "
+                "against SSRF. Use the Demo Lab for sandbox testing."
+            )
             return
-        except ValidationError as e:
-            progress_placeholder.empty()
-            status_text.empty()
-            st.error(f"⚠️ **Validation Error**: {str(e)}")
+        except ValidationError as exc:
+            progress_ph.empty()
+            status_ph.empty()
+            st.error(f"**Validation Error**: {exc}")
             return
-        except ScanError as e:
-            progress_placeholder.empty()
-            status_text.empty()
-            st.error(f"🚨 **Scan Error**: {e.message}")
-            if e.technical_details:
-                st.caption(f"Technical details: {e.technical_details}")
-            if e.remediation_hint:
-                st.info(f"Troubleshooting guidance: {e.remediation_hint}")
+        except ScanError as exc:
+            progress_ph.empty()
+            status_ph.empty()
+            st.error(f"**Scan Error**: {exc.message}")
+            if exc.technical_details:
+                st.caption(f"Details: {exc.technical_details}")
+            if exc.remediation_hint:
+                st.info(f"Guidance: {exc.remediation_hint}")
             return
-        except Exception as e:
-            progress_placeholder.empty()
-            status_text.empty()
-            st.error(f"An unexpected scan failure occurred: {str(e)}")
+        except Exception as exc:
+            progress_ph.empty()
+            status_ph.empty()
+            st.error(f"Unexpected failure: {exc}")
             return
 
-    # Render results if available in session
+    # Render results if available
     if "latest_scan_result" in st.session_state:
-        res: ScanResult = st.session_state["latest_scan_result"]
-        render_scan_results(res)
+        _render_scan_results(st.session_state["latest_scan_result"])
 
 
-def render_scan_results(res: ScanResult):
-    """Render the full interactive audit results view."""
-    st.markdown("<div style='height: 25px;'></div>", unsafe_allow_html=True)
+# ---------------------------------------------------------------------------
+# Results renderer
+# ---------------------------------------------------------------------------
+
+def _render_scan_results(res: ScanResult):
+    """Render the scan result detail view."""
+    t = get_tokens()
 
     score = res.score_report.final_score
     grade = res.score_report.letter_grade
-    score_color = "#10b981" if score >= 80 else ("#f59e0b" if score >= 60 else "#ef4444")
+    score_color = get_score_color(score)
 
-    # Score Overview Banner
-    col_score, col_meta = st.columns([1.2, 2.8])
+    pass_count = sum(1 for f in res.findings if f.status == "PASS")
+    fail_count = sum(1 for f in res.findings if f.status == "FAIL")
+    warn_count = sum(1 for f in res.findings if f.status == "WARNING")
+
+    st.markdown("---")
+
+    # Score + summary row
+    col_score, col_meta = st.columns([1, 3])
 
     with col_score:
         render_safe_html(f"""
-        <div style="background: #0f172a; border: 2px solid {score_color}; border-radius: 12px; padding: 24px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
-            <div style="font-size: 0.8rem; text-transform: uppercase; color: #94a3b8; font-weight: 600;">SECURITY SCORE</div>
-            <div style="font-size: 3.2rem; font-weight: 900; color: {score_color}; line-height: 1.1;">{score}</div>
-            <div style="font-size: 1.2rem; font-weight: 800; color: {score_color}; margin-top: 4px;">GRADE: {grade}</div>
-            <div style="font-size: 0.75rem; color: #64748b; margin-top: 8px;">Transparent CISA/NIST Metric</div>
+        <div class="gn-score-box" style="border:2px solid {score_color};">
+            <div style="font-size:0.75rem; color:{t['text_muted']}; font-weight:600; text-transform:uppercase;">
+                Security Score</div>
+            <div style="font-size:2.8rem; font-weight:800; color:{score_color}; line-height:1.1;">
+                {score}</div>
+            <div style="font-size:1rem; font-weight:700; color:{score_color}; margin-top:4px;">
+                Grade: {grade}</div>
         </div>
         """)
 
     with col_meta:
-        pass_count = sum(1 for f in res.findings if f.status == "PASS")
-        fail_count = sum(1 for f in res.findings if f.status == "FAIL")
-        warn_count = sum(1 for f in res.findings if f.status == "WARNING")
-
         render_safe_html(f"""
-        <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 12px; padding: 20px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #1e293b; padding-bottom: 10px; margin-bottom: 12px;">
-                <span style="font-weight: 700; color: #f8fafc; font-size: 1.1rem;">Target: {res.hostname}</span>
-                <span style="font-size: 0.8rem; color: #94a3b8;">Duration: {res.duration_ms} ms</span>
+        <div style="background:{t['surface']}; border:1px solid {t['border']};
+                    border-radius:8px; padding:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:center;
+                        border-bottom:1px solid {t['border']}; padding-bottom:10px; margin-bottom:12px;">
+                <span style="font-weight:700; color:{t['text_primary']}; font-size:1rem;">
+                    Target: {res.hostname}</span>
+                <span style="font-size:0.8rem; color:{t['text_secondary']};">
+                    Duration: {res.duration_ms} ms</span>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; text-align: center;">
-                <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 10px;">
-                    <div style="font-size: 1.4rem; font-weight: 800; color: #34d399;">{pass_count}</div>
-                    <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">CHECKS PASSED</div>
+            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:10px; text-align:center;">
+                <div style="background:{t['success_bg']}; border:1px solid {t['success']};
+                            border-radius:6px; padding:10px;">
+                    <div style="font-size:1.3rem; font-weight:800; color:{t['success']};">{pass_count}</div>
+                    <div style="font-size:0.7rem; color:{t['text_secondary']}; font-weight:600;">PASSED</div>
                 </div>
-                <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px; padding: 10px;">
-                    <div style="font-size: 1.4rem; font-weight: 800; color: #f87171;">{fail_count}</div>
-                    <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">CHECKS FAILED</div>
+                <div style="background:{t['error_bg']}; border:1px solid {t['error']};
+                            border-radius:6px; padding:10px;">
+                    <div style="font-size:1.3rem; font-weight:800; color:{t['error']};">{fail_count}</div>
+                    <div style="font-size:0.7rem; color:{t['text_secondary']}; font-weight:600;">FAILED</div>
                 </div>
-                <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px; padding: 10px;">
-                    <div style="font-size: 1.4rem; font-weight: 800; color: #fbbf24;">{warn_count}</div>
-                    <div style="font-size: 0.75rem; color: #94a3b8; font-weight: 600;">WARNINGS</div>
+                <div style="background:{t['warning_bg']}; border:1px solid {t['warning']};
+                            border-radius:6px; padding:10px;">
+                    <div style="font-size:1.3rem; font-weight:800; color:{t['warning']};">{warn_count}</div>
+                    <div style="font-size:0.7rem; color:{t['text_secondary']}; font-weight:600;">WARNINGS</div>
                 </div>
             </div>
-            <div style="margin-top: 12px; font-size: 0.8rem; color: #94a3b8;">
-                <strong>Destination URL:</strong> <code>{res.final_url}</code> (HTTP {res.status_code})
+            <div style="margin-top:10px; font-size:0.8rem; color:{t['text_secondary']};">
+                <strong>URL:</strong> <code>{res.final_url}</code> (HTTP {res.status_code})
             </div>
         </div>
         """)
 
-    # Export Report Toolbar
-    st.markdown("<div style='height: 15px;'></div>", unsafe_allow_html=True)
-    st.markdown("##### 📥 Export Assessment Report")
-    exp_col1, exp_col2, exp_col3, exp_col4 = st.columns(4)
-
+    # Export toolbar
+    st.markdown("")
+    st.markdown("##### Export Assessment Report")
     scan_dict = res.to_dict()
+    e1, e2, e3, e4 = st.columns(4)
 
-    with exp_col1:
-        pdf_bytes = generate_pdf_report(scan_dict)
+    with e1:
         st.download_button(
-            "📄 Export PDF",
-            data=pdf_bytes,
+            "PDF Report", data=generate_pdf_report(scan_dict),
             file_name=f"GOVNEXIS-Audit-{res.hostname}.pdf",
-            mime="application/pdf",
-            use_container_width=True
+            mime="application/pdf", use_container_width=True,
         )
-
-    with exp_col2:
-        html_str = generate_html_report(scan_dict)
+    with e2:
         st.download_button(
-            "🌐 Export HTML",
-            data=html_str,
+            "HTML Report", data=generate_html_report(scan_dict),
             file_name=f"GOVNEXIS-Audit-{res.hostname}.html",
-            mime="text/html",
-            use_container_width=True
+            mime="text/html", use_container_width=True,
         )
-
-    with exp_col3:
-        json_str = generate_json_report(scan_dict)
+    with e3:
         st.download_button(
-            "📦 Export JSON",
-            data=json_str,
+            "JSON Data", data=generate_json_report(scan_dict),
             file_name=f"GOVNEXIS-Audit-{res.hostname}.json",
-            mime="application/json",
-            use_container_width=True
+            mime="application/json", use_container_width=True,
         )
-
-    with exp_col4:
-        csv_str = generate_csv_report(scan_dict)
+    with e4:
         st.download_button(
-            "📊 Export CSV",
-            data=csv_str,
+            "CSV Table", data=generate_csv_report(scan_dict),
             file_name=f"GOVNEXIS-Audit-{res.hostname}.csv",
-            mime="text/csv",
-            use_container_width=True
+            mime="text/csv", use_container_width=True,
         )
 
-    # Detailed Findings Accordion
-    st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
-    st.markdown("##### 📋 Evaluated Security Configuration Checks")
+    # Detailed findings
+    st.markdown("")
+    st.markdown("##### Evaluated Security Checks")
 
     for f in res.findings:
         status_pill = get_status_badge_html(f.status)
@@ -276,14 +283,18 @@ def render_scan_results(res: ScanResult):
         with st.expander(f"{f.status} — {f.title} ({f.severity})"):
             c1, c2 = st.columns([3, 1])
             with c1:
-                st.markdown(f"**Category:** `{f.category}` | **Status:** {status_pill} | **Severity:** {sev_pill}", unsafe_allow_html=True)
-                st.markdown(f"**Observed Evidence:**")
+                st.markdown(
+                    f"**Category:** `{f.category}` | **Status:** {status_pill} "
+                    f"| **Severity:** {sev_pill}",
+                    unsafe_allow_html=True,
+                )
+                st.markdown("**Observed Evidence:**")
                 st.code(f.evidence, language="http")
                 st.markdown(f"**Why It Matters:** {f.why_it_matters}")
-                st.markdown(f"**Potential Adversary Impact:** {f.potential_impact}")
+                st.markdown(f"**Potential Impact:** {f.potential_impact}")
                 st.markdown(f"**Recommended Action:** {f.recommended_action}")
             with c2:
-                st.markdown("**References & Standards:**")
-                for r in f.references:
-                    st.markdown(f"- [{r['title']}]({r['url']})")
-                st.caption(f"Audit confidence: {f.confidence}")
+                st.markdown("**References:**")
+                for ref in f.references:
+                    st.markdown(f"- [{ref['title']}]({ref['url']})")
+                st.caption(f"Confidence: {f.confidence}")

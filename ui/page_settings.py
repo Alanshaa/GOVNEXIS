@@ -2,6 +2,7 @@
 
 Contains:
 - Product identity, mission statement, and core architecture
+- Theme & appearance preferences
 - Transparent scoring methodology and check weights reference table
 - Guided troubleshooting for common network and TLS failure modes
 - Legal authorization notice and defensive auditing disclaimers
@@ -9,27 +10,42 @@ Contains:
 
 import streamlit as st
 import pandas as pd
+from typing import Dict, Any
 
 from core.config import (
     APP_NAME, APP_TAGLINE, APP_DESCRIPTION, APP_CATEGORY, APP_VERSION,
     CHECK_WEIGHTS
 )
-from ui.theme import render_brand_header
+from ui.theme import (
+    render_page_header,
+    render_safe_html,
+    get_current_theme,
+    set_theme,
+    get_tokens,
+    THEME_DARK,
+    THEME_LIGHT,
+)
 
 
-def render_settings_page():
+def render_settings_page() -> None:
     """Render Settings, Methodology and Guided Help page."""
-    render_brand_header("System Architecture, Methodology & Guided Help")
+    render_page_header(
+        "Settings & Documentation",
+        "System architecture, transparent scoring methodology, and guided troubleshooting",
+    )
+    tokens = get_tokens()
+    current_theme = get_current_theme()
 
-    tab_about, tab_scoring, tab_help, tab_legal = st.tabs([
-        "🛡️ About GOVNEXIS",
-        "⚖️ Transparent Scoring Model",
-        "❓ Guided Error Help",
-        "📜 Legal & Authorization Notice"
+    tab_about, tab_theme, tab_scoring, tab_help, tab_legal = st.tabs([
+        "About GOVNEXIS",
+        "Theme & Appearance",
+        "Scoring Methodology",
+        "Guided Troubleshooting",
+        "Legal & Ethical Notice",
     ])
 
     with tab_about:
-        st.markdown(f"### {APP_NAME} — {APP_CATEGORY}")
+        st.subheader(f"{APP_NAME} — {APP_CATEGORY}")
         st.markdown(f"> *\"{APP_TAGLINE}\"*")
         st.markdown(f"**Description:** {APP_DESCRIPTION}")
 
@@ -42,11 +58,52 @@ def render_settings_page():
         5. **Isolated Local Demo Lab**: Safe sandbox test harness on `127.0.0.1:8765` for hackathon evaluation and air-gapped testing.
         """)
 
-        st.markdown("---")
+        st.divider()
         st.caption(f"GOVNEXIS Core Engine v{APP_VERSION} | Python 3 | SQLite 3 | Streamlit")
 
+    with tab_theme:
+        st.subheader("Appearance & Design System")
+        st.markdown("GOVNEXIS supports dark and light modes. Your preference is persisted across browser refreshes and sessions.")
+
+        col_t1, col_t2 = st.columns([2, 2])
+        with col_t1:
+            theme_choice = st.radio(
+                "Interface Theme",
+                [THEME_DARK, THEME_LIGHT],
+                index=0 if current_theme == THEME_DARK else 1,
+                format_func=lambda x: f"Dark Mode ({x.title()})" if x == THEME_DARK else f"Light Mode ({x.title()})",
+                horizontal=True
+            )
+            if theme_choice != current_theme:
+                set_theme(theme_choice)
+                st.rerun()
+
+        with col_t2:
+            st.markdown(f"""
+            <div style="background: {tokens['surface']}; border: 1px solid {tokens['border']}; border-radius: 6px; padding: 12px 16px;">
+                <div style="font-size: 0.75rem; color: {tokens['text_muted']}; font-weight: 600; text-transform: uppercase;">Active Theme</div>
+                <div style="font-size: 1.1rem; font-weight: 700; color: {tokens['accent']}; margin: 4px 0;">{current_theme.upper()}</div>
+                <div style="font-size: 0.8rem; color: {tokens['text_secondary']};">Tokens loaded from centralized design system</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("#### Design Palette Tokens")
+        token_rows = [
+            {"Token": "Background", "Hex": tokens["bg"], "Description": "Main application canvas"},
+            {"Token": "Surface", "Hex": tokens["surface"], "Description": "Card and container backgrounds"},
+            {"Token": "Surface Elevated", "Hex": tokens["surface_elevated"], "Description": "Raised elements and inputs"},
+            {"Token": "Primary Text", "Hex": tokens["text_primary"], "Description": "High contrast body and titles"},
+            {"Token": "Secondary Text", "Hex": tokens["text_secondary"], "Description": "Descriptions and secondary content"},
+            {"Token": "Borders", "Hex": tokens["border"], "Description": "Subtle structural separators"},
+            {"Token": "Primary Accent", "Hex": tokens["accent"], "Description": "Muted emerald for primary actions"},
+            {"Token": "Secondary Accent", "Hex": tokens["accent_teal"], "Description": "Restrained teal for secondary highlights"},
+            {"Token": "Warning", "Hex": tokens["warning"], "Description": "Amber warning indicators"},
+            {"Token": "Error", "Hex": tokens["error"], "Description": "Accessible muted red failure indicators"},
+        ]
+        st.dataframe(pd.DataFrame(token_rows), use_container_width=True, hide_index=True)
+
     with tab_scoring:
-        st.markdown("### Transparent Scoring Methodology")
+        st.subheader("Transparent Scoring Methodology")
         st.markdown("""
         GOVNEXIS scores website security configurations deterministically out of **100 points**.
         The algorithm applies the following rules:
@@ -68,10 +125,10 @@ def render_settings_page():
 
         st.dataframe(pd.DataFrame(weights_data), use_container_width=True, hide_index=True)
 
-        st.info("ℹ️ **Independent Risk Visibility**: High and Critical findings remain prominently visible in executive reports regardless of the numerical score.")
+        st.info("Independent Risk Visibility: High and Critical findings remain prominently visible in executive reports regardless of the numerical score.")
 
     with tab_help:
-        st.markdown("### Guided Troubleshooting & Plain-English Error Help")
+        st.subheader("Guided Troubleshooting & Plain-English Error Help")
         st.markdown("If an audit scan fails to complete, refer to the diagnostic guide below:")
 
         errors = [
@@ -103,12 +160,12 @@ def render_settings_page():
         ]
 
         for e in errors:
-            with st.expander(f"⚠️ {e['Issue']}"):
+            with st.expander(e["Issue"]):
                 st.markdown(f"**What Happened:** {e['Plain English']}")
                 st.markdown(f"**Recommended Action:** {e['Action']}")
 
     with tab_legal:
-        st.markdown("### Legal Authorization & Ethical Assessment Notice")
+        st.subheader("Legal Authorization & Ethical Assessment Notice")
         st.markdown("""
         **Notice of Intended Use:**
         GOVNEXIS is developed strictly as a defensive auditing and educational platform. 

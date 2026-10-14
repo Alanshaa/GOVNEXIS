@@ -11,8 +11,12 @@ import streamlit as st
 from typing import Dict, Any
 
 from core.database import get_remediation_tasks, update_remediation_status
-from ui.theme import render_brand_header, render_safe_html
-
+from ui.theme import (
+    render_page_header,
+    render_safe_html,
+    get_tokens,
+    get_verification_color,
+)
 
 # Comprehensive remediation templates for all supported configuration checks
 REMEDIATION_GUIDES: Dict[str, Dict[str, Any]] = {
@@ -139,21 +143,25 @@ REMEDIATION_GUIDES: Dict[str, Dict[str, Any]] = {
 }
 
 
-def render_remediation_page():
-    """Render the Remediation Lab."""
-    render_brand_header("Remediation Lab & Hardening Knowledge Base")
+def render_remediation_page() -> None:
+    """Render the Remediation Knowledge Base and Task Tracker."""
+    render_page_header(
+        "Remediation",
+        "Practical hardening playbooks, server configuration snippets, and task tracking",
+    )
+    tokens = get_tokens()
 
-    render_safe_html("""
-    <div style="background: rgba(15, 23, 42, 0.7); border: 1px solid #1e293b; border-left: 4px solid #10b981; padding: 14px 18px; border-radius: 8px; margin-bottom: 20px;">
-        <div style="font-weight: 700; color: #34d399; font-size: 0.9rem;">SAFE REMEDIATION PLAYBOOKS</div>
-        <div style="font-size: 0.8rem; color: #94a3b8; line-height: 1.5; margin-top: 4px;">
+    render_safe_html(f"""
+    <div style="background: {tokens['surface']}; border: 1px solid {tokens['border']}; border-left: 4px solid {tokens['accent']}; padding: 12px 16px; border-radius: 6px; margin-bottom: 20px;">
+        <div style="font-weight: 600; color: {tokens['accent']}; font-size: 0.82rem; text-transform: uppercase; letter-spacing: 0.04em;">Safe Remediation Playbooks</div>
+        <div style="font-size: 0.82rem; color: {tokens['text_secondary']}; line-height: 1.5; margin-top: 4px;">
             The configurations below are verified reference implementations. GOVNEXIS never modifies external servers automatically.
             Apply these changes in your staging environment first, test client interactions, and verify with a follow-up scan.
         </div>
     </div>
     """)
 
-    tab_playbooks, tab_checklist = st.tabs(["📚 Hardening Playbooks", "✅ Remediation Task Checklist"])
+    tab_playbooks, tab_checklist = st.tabs(["Hardening Playbooks", "Remediation Tasks"])
 
     with tab_playbooks:
         selected_rule = st.selectbox(
@@ -164,30 +172,33 @@ def render_remediation_page():
 
         guide = REMEDIATION_GUIDES[selected_rule]
 
-        st.markdown(f"### {guide['title']}")
+        st.subheader(guide['title'])
         col_info1, col_info2 = st.columns([1, 1])
         with col_info1:
             st.markdown(f"**What was detected:** {guide['detected']}")
             st.markdown(f"**Why it matters:** {guide['why_it_matters']}")
         with col_info2:
             st.markdown(f"**What to change:** {guide['what_to_change']}")
-            st.markdown(f"**Verification Command:**")
+            st.markdown("**Verification Command:**")
             st.code(guide['verification_cmd'], language="bash")
 
-        st.warning(f"⚠️ **Compatibility Considerations:** {guide['compatibility']}")
+        st.warning(f"Compatibility Considerations: {guide['compatibility']}")
 
-        st.markdown("#### Ready-to-Copy Server Configuration Snippets")
+        st.markdown("**Ready-to-Copy Server Configuration Snippets**")
         server_choice = st.radio(
             "Select Web Server / Application Framework",
             list(guide["configs"].keys()),
             horizontal=True
         )
 
-        st.code(guide["configs"][server_choice], language="nginx" if "Nginx" in server_choice else "python" if "Python" in server_choice else "javascript" if "Node" in server_choice else "apache")
+        st.code(
+            guide["configs"][server_choice],
+            language="nginx" if "Nginx" in server_choice else "python" if "Python" in server_choice else "javascript" if "Node" in server_choice else "apache"
+        )
 
     with tab_checklist:
-        st.markdown("### Actionable Remediation Tasks")
-        st.caption("Track remediation progress. Only a successful follow-up rescan can verify an issue as truly resolved.")
+        st.subheader("Actionable Remediation Tasks")
+        st.caption("Track remediation progress. Only a subsequent scan can verify an issue as confirmed resolved.")
 
         tasks = get_remediation_tasks()
         if not tasks:
@@ -195,37 +206,38 @@ def render_remediation_page():
         else:
             for task in tasks:
                 t_status = task["status"]
-                t_color = "#34d399" if t_status == "Verified" else ("#38bdf8" if t_status == "Fixed" else ("#fbbf24" if t_status == "In Progress" else "#f87171"))
+                t_color = get_verification_color(t_status)
 
-                with st.container():
-                    render_safe_html(f"""
-                    <div style="background: #0f172a; border: 1px solid #1e293b; border-radius: 8px; padding: 14px; margin-bottom: 10px;">
-                        <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <div>
-                                <span style="font-weight: 700; color: #f8fafc; font-size: 0.95rem;">{task['title']}</span>
-                                <span style="font-size: 0.8rem; color: #64748b; margin-left: 8px;">Target: <code>{task['target_host']}</code></span>
-                            </div>
-                            <span style="font-weight: 700; color: {t_color}; font-size: 0.85rem; border: 1px solid {t_color}; padding: 2px 8px; border-radius: 4px;">
-                                {t_status}
-                            </span>
+                render_safe_html(f"""
+                <div style="background: {tokens['surface']}; border: 1px solid {tokens['border']}; border-radius: 6px; padding: 14px; margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+                        <div>
+                            <span style="font-weight: 600; color: {tokens['text_primary']}; font-size: 0.95rem;">{task['title']}</span>
+                            <span style="font-size: 0.8rem; color: {tokens['text_muted']}; margin-left: 8px;">Target: <code>{task['target_host']}</code></span>
                         </div>
-                        <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 6px;">Notes: {task['notes'] or 'None'}</div>
+                        <span style="font-weight: 600; color: {t_color}; font-size: 0.8rem; border: 1px solid {t_color}; padding: 2px 8px; border-radius: 4px;">
+                            {t_status}
+                        </span>
                     </div>
-                    """)
+                    <div style="font-size: 0.8rem; color: {tokens['text_secondary']}; margin-top: 6px;">Notes: {task['notes'] or 'None'}</div>
+                </div>
+                """)
 
-                    c_sel, c_note, c_act = st.columns([1.5, 2.5, 1])
-                    with c_sel:
-                        new_st = st.selectbox(
-                            "Lifecycle",
-                            ["Open", "In Progress", "Fixed", "Verified"],
-                            index=["Open", "In Progress", "Fixed", "Verified"].index(t_status) if t_status in ["Open", "In Progress", "Fixed", "Verified"] else 0,
-                            key=f"task_sel_{task['id']}"
-                        )
-                    with c_note:
-                        note_text = st.text_input("Status Notes", value=task["notes"], key=f"note_{task['id']}")
-                    with c_act:
-                        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-                        if st.button("Update", key=f"up_btn_{task['id']}", use_container_width=True):
-                            update_remediation_status(task["id"], new_st, note_text)
-                            st.success("Updated task!")
-                            st.rerun()
+                c_sel, c_note, c_act = st.columns([1.5, 2.5, 1])
+                with c_sel:
+                    options = ["Open", "In Progress", "Fixed", "Verified"]
+                    curr_idx = options.index(t_status) if t_status in options else 0
+                    new_st = st.selectbox(
+                        "Lifecycle",
+                        options,
+                        index=curr_idx,
+                        key=f"task_sel_{task['id']}",
+                        label_visibility="collapsed"
+                    )
+                with c_note:
+                    note_text = st.text_input("Status Notes", value=task["notes"] or "", key=f"note_{task['id']}", label_visibility="collapsed", placeholder="Add progress notes...")
+                with c_act:
+                    if st.button("Update", key=f"up_btn_{task['id']}", use_container_width=True):
+                        update_remediation_status(task["id"], new_st, note_text)
+                        st.success("Updated.")
+                        st.rerun()

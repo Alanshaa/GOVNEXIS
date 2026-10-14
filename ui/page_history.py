@@ -5,41 +5,44 @@ Enables:
 - Filtering and searching by target and date
 - Re-opening complete past scan results
 - Deleting individual or all historical records
-- Exporting full scan history to CSV
+- Exporting full scan history
 """
 
 import streamlit as st
 import pandas as pd
-import json
+from typing import Dict, Any, List
 
 from core.database import get_all_scans, get_scan, delete_scan, delete_all_scans
-from core.reports import generate_csv_report
-from ui.theme import render_brand_header
+from ui.theme import render_page_header, get_tokens
 
 
-def render_history_page():
+def render_history_page() -> None:
     """Render the persistent scan history and management interface."""
-    render_brand_header("Persistent Security Audit History")
+    render_page_header(
+        "History",
+        "Audit chronological scan records, inspect past findings, and manage scan logs",
+    )
+    tokens = get_tokens()
 
     scans = get_all_scans(limit=100)
 
     if not scans:
-        st.info("No historical scan records found. Run scans on the **New Security Scan** page or load sample data from **Overview**.")
+        st.info("No historical scan records found. Run scans on the New Scan page or use the Demo Lab.")
         return
 
     # Filter Toolbar
     c_search, c_filter, c_del = st.columns([2, 1.5, 1])
 
     with c_search:
-        search_host = st.text_input("🔍 Search by Hostname", placeholder="Filter by host...")
+        search_host = st.text_input("Search Hostname", placeholder="Filter by host...")
 
     with c_filter:
         hostnames = ["All Targets"] + sorted(list(set(s["hostname"] for s in scans)))
-        selected_target = st.selectbox("Filter Target Host", hostnames)
+        selected_target = st.selectbox("Target Host", hostnames)
 
     with c_del:
-        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-        if st.button("🗑️ Clear All History", type="secondary", use_container_width=True):
+        st.write("")
+        if st.button("Clear All History", type="secondary", use_container_width=True):
             delete_all_scans()
             st.success("All historical scan records cleared.")
             st.rerun()
@@ -51,7 +54,8 @@ def render_history_page():
     if selected_target != "All Targets":
         filtered_scans = [s for s in filtered_scans if s["hostname"] == selected_target]
 
-    st.markdown(f"**Found {len(filtered_scans)} historical audit records**")
+    st.markdown(f"<span style='font-size: 0.85rem; color: {tokens['text_muted']};'>Found {len(filtered_scans)} historical audit records</span>", unsafe_allow_html=True)
+    st.write("")
 
     # Display Scan Table
     table_rows = []
@@ -71,16 +75,16 @@ def render_history_page():
     st.dataframe(pd.DataFrame(table_rows), use_container_width=True, hide_index=True)
 
     # Detailed Inspection Selector
-    st.markdown("### 🔍 Inspect Scan Record")
+    st.write("")
+    st.subheader("Inspect Scan Record")
     col_pick, col_act = st.columns([3, 1])
 
     with col_pick:
         scan_id_options = {s["id"]: f"Scan #{s['id']} — {s['hostname']} ({s['timestamp'][:16]})" for s in filtered_scans}
-        picked_id = st.selectbox("Select Scan to View in Depth", list(scan_id_options.keys()), format_func=lambda x: scan_id_options[x])
+        picked_id = st.selectbox("Select Scan to Inspect", list(scan_id_options.keys()), format_func=lambda x: scan_id_options[x], label_visibility="collapsed")
 
     with col_act:
-        st.markdown("<div style='height: 28px;'></div>", unsafe_allow_html=True)
-        if st.button("Delete This Scan", key="btn_del_single", use_container_width=True):
+        if st.button("Delete Selected", key="btn_del_single", use_container_width=True):
             delete_scan(picked_id)
             st.success(f"Scan #{picked_id} deleted.")
             st.rerun()
@@ -108,6 +112,6 @@ def render_history_page():
                     "Evidence": f["evidence"][:80],
                     "Action": f["recommended_action"][:80],
                 }
-                for f in selected_scan_detail["findings"]
+                for f in selected_scan_detail.get("findings", [])
             ]
             st.dataframe(pd.DataFrame(findings_data), use_container_width=True, hide_index=True)
